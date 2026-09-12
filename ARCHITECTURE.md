@@ -7,7 +7,7 @@ Offline-first, zero-knowledge, hardware-backed password/data vault for Android a
 ```
 KeyKeeper.slnx
 ├── KeyKeeper/              # .NET MAUI app (net10.0-android, net10.0-ios)
-│   ├── Behaviors/            # PageActivityBehavior — app-wide inactivity-timer activity reporting (post-Phase-4 fix — done)
+│   ├── Behaviors/            # PageActivityBehavior — app-wide inactivity-timer activity reporting (post-Phase-4 fix) + page-appear fade-in (Phase 9 — done)
 │   ├── Data/                # (empty — Data/ is now KeyKeeper.Core/Data, see below)
 │   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore, FolderTreeFlattener (Phase 5), MauiClipboard (Phase 6 — done)
 │   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel, PasswordGeneratorViewModel, SecurityWarningViewModel (Phase 7), BackupViewModel (Phase 8) + 5 item form ViewModels
@@ -75,7 +75,8 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
   `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of
-  Phase 5, 195 as of Phase 6, 202 as of Phase 7, 220 as of Phase 8).
+  Phase 5, 195 as of Phase 6, 202 as of Phase 7, 220 as of Phase 8, unchanged at Phase 9 — a
+  visual/UX-only phase, see its own section).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -1974,6 +1975,202 @@ Added this phase: `IBackupFormatMigrator` → `BackupFormatMigrator`, `IBackupSe
 construct, same lifetime reasoning as the repositories they sit alongside). `BackupViewModel`/
 `BackupPage` registered transient, same as every other page.
 
+## Phase 9: Visual/UX polish (`KeyKeeper/Resources/Styles`, `KeyKeeper/Behaviors`, `KeyKeeper/Views`, `KeyKeeper/ViewModels`)
+
+Pure presentation-layer work — a consistency sweep across every screen, distinct empty states,
+accessibility fixes, two small animations, and confirming dark-theme support — with no new
+features and, deliberately, almost no logic changes (the two exceptions are noted below). Nothing
+in `KeyKeeper.Core` changed this phase.
+
+### Consistency sweep — named styles replacing repeated, drifting inline styling
+
+Before this phase, every page independently inlined the same handful of visual choices, and they
+had quietly drifted: `TextColor="Red"`/`BackgroundColor="Red"` for every error message and
+destructive button (across `SetupPage`, `LockPage`, all 5 item forms, `FolderManagementPage`,
+`PasswordGeneratorPage`, `BackupPage`), and `Style="{StaticResource SubHeadline}"` (a 24pt
+page-subtitle style, originally written for `SetupPage`'s welcome description) reused for small,
+transient clipboard/status captions on 5 different pages purely because it was already in scope,
+not because a one-line status caption should render like a page heading.
+
+`Resources/Styles/Colors.xaml` gained `ErrorTextLight`/`ErrorTextDark` and
+`DangerLight`/`DangerDark` — plain hardcoded `"Red"` is legible in light mode but low-contrast
+against the dark theme's near-black page background (`OffBlack`, `#1f1f1f`); these are real
+Light/Dark pairs, not one color reused for both. `Resources/Styles/Styles.xaml` gained six named
+styles built on them: `ErrorLabel`, `StatusCaption` (13pt, muted, centered), `DangerButton`, plus
+three chip/card styles (`TagChipBorder`, `TagRemoveLabel`, `FilterChipBorder`, `ResultCard`) that
+had been the same `Border`/`Label` properties copy-pasted across every item-form page and
+`VaultListPage`/`PasswordGeneratorPage`/`LoginFormPage` respectively. Every page listed above now
+references one of these instead of repeating (and inconsistently theming) the values directly —
+this *is* the "ortak stil sözlüğü" this phase asked for; `Styles.xaml` already existed since the
+MAUI template, it just hadn't accumulated this app's own repeated patterns yet.
+
+**Two real layout bugs found and fixed by this sweep, not just cosmetic drift**:
+- `BackupPage`'s three section-description labels ("Tüm kasanızın şifreli, taşınabilir bir
+  kopyasını oluşturur.", ...) used `Style="{StaticResource SubHeadline}"` — meaning they rendered
+  at 24pt, the same size as a page's main subtitle, instead of as small body captions. This was
+  never caught visually during Phase 8 because `BackupPage`, like every other page, can't be
+  screenshotted on this Android emulator (see Manual verification below) — Phase 9's *text-only*
+  review (reading the XAML, not a screenshot) is what caught it.
+- `VaultListPage`'s item-row subtitle also carried `Style="{StaticResource SubHeadline}"`
+  (immediately overriding just its `FontSize` back down to 13, but not its inherited
+  `HorizontalTextAlignment="Center"`/`HorizontalOptions="Center"`), while the title label above it
+  in the same `VerticalStackLayout` was left-aligned (the default) — every row's subtitle was
+  centered under a left-aligned title. Fixed by giving the subtitle `StatusCaption` (also fixed
+  explicitly left-aligned, since `StatusCaption` itself defaults to centered for its more common
+  transient-status use).
+
+### Empty states (`VaultListViewModel.EmptyStateMessage`/`ShowAddFirstItemButton`)
+
+Before this phase, `VaultListPage` showed one static "Henüz öğe yok. Eklemek için sağ üstteki
+'Ekle' düğmesine dokunun." for every reason its item list could be empty — a genuinely empty
+vault, a search with no matches, or an empty folder/tag/favorites filter — even though only the
+first of those is actually fixed by adding a new item. `EmptyStateMessage` (a plain computed
+property, re-evaluated and re-notified at the end of `ApplyFilters()`, same place `IsEmpty`
+already was) now distinguishes:
+
+| Condition | Message |
+|---|---|
+| The vault has zero items at all | "Henüz öğe yok. Başlamak için ilk öğeni ekle." |
+| A search query matches nothing | `"<query>" için sonuç bulunamadı.` |
+| A specific folder filter matches nothing | "Bu klasörde henüz öğe yok." |
+| The "Klasörsüz" filter matches nothing | "Klasörsüz öğe yok." |
+| Any other filter combination matches nothing | "Bu filtrelerle eşleşen öğe yok." |
+
+`ShowAddFirstItemButton` (`IsEmpty && _allItems.Count == 0`) gates a new "İlk Öğeni Ekle" button,
+bound to the same `AddCommand` the toolbar's "Ekle" already used — shown only for the first case,
+since a search/filter with no matches isn't fixed by adding an item, it's fixed by changing or
+clearing the filter. Verified for real: an empty vault shows the button and it opens the same "Yeni
+öğe" action sheet; a non-matching search shows its own message with no button; an empty folder
+filter shows its own message with no button (see Manual verification).
+
+### Loading/feedback states — already consistent, reviewed not rewritten
+
+Every `IsBusy`-driven operation in this app (master-password unlock/setup, item save, backup
+export/import/CSV) already followed one pattern before this phase: an `ActivityIndicator` bound to
+`IsBusy`, an `ErrorLabel`-styled message bound to `HasError`, both toggled the same way. This
+phase's review confirmed that consistency rather than introducing a new pattern — the only actual
+change here is `ErrorLabel` replacing hardcoded `"Red"` everywhere, covered above.
+`FolderManagementViewModel`/`PasswordGeneratorViewModel`/`VaultListViewModel` have no `IsBusy` at
+all, deliberately: their operations are local, synchronous SQL/in-memory calls with no perceptible
+delay, so there is nothing for a spinner to cover.
+
+### Accessibility
+
+- **Touch targets**: `VaultListPage`'s favorite-star column was 40px wide (`ColumnDefinitions="48,*,40"`)
+  — below the ~44pt guideline — widened to 44 (`"48,*,44"`), and the star `Label` itself given an
+  explicit `HeightRequest`/`WidthRequest="44"` (it previously had no fixed size, just `FontSize="22"`
+  centered in its column). The removable-tag "✕" affordance (`TagRemoveLabel`) is a deliberate,
+  smaller-than-44 compromise — see that style's own doc comment in `Styles.xaml` for why a full
+  44x44 target there would make every tag chip enormous; it was still padded (`Padding="6,6"`)
+  to noticeably grow its actual hit area over the previous bare glyph.
+- **Screen-reader labels** (`SemanticProperties.Description`) added to every icon-only or
+  otherwise-unlabeled tappable that had none before: the favorite star (`"Favorilere ekle"`/
+  `"Favorilerden çıkar"`, switching with the same `DataTrigger` that already switches its glyph),
+  the folder/tag filter chips on `VaultListPage` (`"Klasör filtresi: <name>"`/`"Etiket filtresi:
+  <name>"`), the removable-tag chips on every item form (`"Etiket: <name>"`/`"Etiketi kaldır:
+  <name>"`), the vault-list row itself (`"<title> öğesini aç"`), and the security-warning page's
+  "⚠️" glyph (`"Uyarı"`). Text-labeled buttons (every `Button.Text`) already have an accessible
+  name for free and weren't touched — adding a redundant `AutomationProperties.Name` equal to the
+  visible text would have added noise, not accessibility.
+- **Color contrast**: the `ErrorTextLight`/`ErrorTextDark` and `DangerLight`/`DangerDark` pairs
+  above exist specifically so error/destructive-action text and button fills stay legible in both
+  themes, rather than the one plain `"Red"` this app used everywhere before, which was only ever
+  checked against a light background.
+
+### Animation and micro-interactions
+
+- **Page-appear fade-in**: every page now fades in from fully transparent over 180ms
+  (`Easing.CubicOut`) instead of appearing with a hard cut — the only motion added, per this
+  phase's "abartısız" (understated) brief; no slide, no scale. Folded into the existing
+  `PageActivityBehavior` (attached app-wide via the base `Page` style, same as before) rather than
+  a second behavior class: a style's `Behaviors` setter in this codebase's XAML source-generation
+  setup only successfully attaches a single behavior instance — a second sibling under the same
+  `Setter.Value` fails to compile (`MAUIX2002`) — so reusing `PageActivityBehavior`'s own
+  `Page.Appearing` hook for this second, unrelated effect was less code and less risk than
+  introducing a multi-behavior attachment mechanism just to keep the two concerns in separate
+  classes. See that class's own doc comment.
+- **Wrong-password shake** (`LockPage`, optional per the brief, implemented since it was cheap):
+  the moment `LockViewModel.HasError` flips true (a wrong password or lockout), `LockPage`'s
+  code-behind runs a small four-step `TranslateTo` shake on the password `Entry` — purely
+  decorative view-layer feedback, so it lives in the page's code-behind (which already subscribes
+  to the ViewModel for the `Unlocked` event) rather than becoming a new responsibility of
+  `LockViewModel` itself. Verified on-device: entering a wrong password shows the usual
+  "Yanlış şifre (1. yanlış deneme)." message with no crash and no logcat exception, and the
+  vault still unlocks normally afterward with the correct password.
+- Deliberately not attempted: per-item insert/remove animations on `VaultListPage`'s
+  `CollectionView` (MAUI's `CollectionView` doesn't support this cleanly without a custom
+  `ItemsLayout`/renderer, and the brief's "abartısız" instruction argued against reaching for one)
+  — the existing "reload the whole list, then fade the page in" behavior (the page-appear fade
+  above, on returning from a form's save) already gives a returning list a soft transition instead
+  of a hard cut, which was judged sufficient.
+
+### Dark/light theme
+
+This app already targeted both themes from Phase 0 onward — every color in `Styles.xaml`/
+`Colors.xaml` has always used `AppThemeBinding Light=.../Dark=...` (the MAUI template's own
+convention, never changed), and `Resources/Styles/Styles.xaml`'s base `Page`/`Shell` styles set an
+explicit themed background (`White`/`OffBlack`) rather than leaving it transparent. Phase 9 did not
+introduce theme support — it audits and fixes the handful of places that had quietly fallen outside
+that convention: every hardcoded `"Red"` (now `ErrorLabel`/`DangerButton`, both theme-aware) and
+every tag-chip/result-card `BackgroundColor="{StaticResource Gray200}"` with no `Dark` counterpart
+at all (now `AppThemeBinding Light=Gray200, Dark=Gray600` via `TagChipBorder`/`ResultCard`).
+Toggled system dark mode on-device (`adb shell cmd uimode night yes`) and confirmed the app keeps
+running and re-renders the same content with no crash — see Manual verification for why this
+couldn't be a pixel-level before/after comparison.
+
+### Tests
+
+Still 220 (unchanged from Phase 8) — this phase's only `KeyKeeper.Core` change is none at all;
+`VaultListViewModel.EmptyStateMessage`/`ShowAddFirstItemButton` are new, but they live in the MAUI
+head project, which (like every ViewModel in it) has no dedicated test project, consistent with
+this whole codebase's split (`KeyKeeper.Core.Tests` only ever covered `KeyKeeper.Core`). Re-ran the
+full suite after every round of changes this phase; still 0 failures throughout.
+
+### Manual verification — Android emulator (`pixel_7_-_api_36_0`)
+
+**A hard constraint specific to this phase**: Phase 7's `FLAG_SECURE` (always on, for the whole
+app session, on every page — see that section) means **no page belonging to this app can be
+captured by `adb shell screencap` at all**, confirmed again explicitly this phase (a screenshot of
+the freshly-reinstalled `SetupPage` came back solid black, identical to every blocked screenshot in
+Phases 7-8). A visual polish phase would normally lean on before/after screenshots; here, on
+Android, that's structurally impossible without weakening the exact security property Phase 7 added
+on purpose — not attempted. iOS has no equivalent blanket block (`SecureOverlayService` only
+engages on active screen-recording/backgrounding), but no Mac/Xcode is available in this
+environment either (the same limitation as every iOS-only piece of this app since Phase 2).
+Verification below instead relies on `uiautomator`'s accessibility-tree dump (which reads every
+page's real, rendered text content regardless of `FLAG_SECURE`, since that flag blocks pixel
+capture, not the accessibility tree) plus the few overlays that *aren't* part of this app's own
+window and so aren't blocked (native `DisplayActionSheetAsync` sheets) — screenshotted where used.
+Evidence is in `docs/phase9-verification/`.
+
+- **Empty vault state**: a freshly set-up, empty vault showed "Henüz öğe yok. Başlamak için ilk
+  öğeni ekle." and an "İlk Öğeni Ekle" button (`p9_01`); tapping it opened the same "Yeni öğe"
+  action sheet the toolbar's "Ekle" does (screenshotted — not `FLAG_SECURE`-blocked, `p9_02`).
+- **Adding an item and the vault-list row layout**: added a WiFi item with a tag; the list showed
+  it with the title left-aligned above its now-also-left-aligned subtitle (the centering bug
+  fixed above), a tag filter chip in the new `FilterChipBorder` style, and the favorite-star
+  column/label's bounds confirmed at 44x44 (was 40x40) via the dump's reported pixel bounds scaled
+  by this device's density (`p9_03`).
+- **Search-with-no-matches state**: typing a non-matching query showed
+  `"zzznotfound" için sonuç bulunamadı.` with no add-item button (`p9_04`).
+- **Empty-folder state**: created a folder with nothing in it, selected its filter chip, and saw
+  "Bu klasörde henüz öğe yok." with no add-item button (`p9_06`).
+- **Wrong-password shake**: entering a wrong password on the lock screen produced the usual
+  distinctly-worded error with no crash/exception in `logcat`, and the vault still unlocked
+  normally with the correct password immediately after (`p9_05`).
+- **Dark mode**: toggled system-wide (`adb shell cmd uimode night yes`), confirmed the app kept
+  running and the same screen's content re-dumped identically (structural correctness); reverted
+  afterward. Pixel-level theme correctness rests on `Styles.xaml`/`Colors.xaml`'s
+  `AppThemeBinding` definitions themselves (reviewed directly, not screenshotted) — the same basis
+  every prior phase's dark-mode support has stood on, per the FLAG_SECURE constraint above.
+- **Style consolidation didn't regress anything**: the `ResultCard` style (replacing duplicated
+  inline `Border` styling on `PasswordGeneratorPage` and `LoginFormPage`) was exercised by actually
+  generating a password and confirming the card, strength label, and "Kopyala" button all still
+  rendered correctly (`p9_07`).
+- **iOS**: compile-only (`dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-ios`) — no Mac/Xcode
+  available in this environment, the same limitation as every other iOS-only piece of this app
+  since Phase 2.
+
 ## Explicitly out of scope so far
 - No dedicated tag-management screen (Phase 5) — tags are created inline from an item form's "Yeni
   etiket" field; renaming/deleting a tag entity or `ITagRepository.DeleteUnused` cleanup have no UI
@@ -2036,3 +2233,21 @@ construct, same lifetime reasoning as the repositories they sit alongside). `Bac
   one-way escape hatch.
 - No column/field selection for CSV export (Phase 8) — it's always every column for every item,
   including ones a given item type leaves blank; a "choose which fields" option wasn't asked for.
+- No per-item add/remove animations on `VaultListPage`'s `CollectionView` (Phase 9, deliberate) —
+  see that phase's Animation section for why a custom `ItemsLayout`/renderer wasn't reached for.
+- No pixel-level before/after screenshots for Phase 9's own visual changes — Phase 7's
+  `FLAG_SECURE` blocks screenshotting this app's own pages on Android entirely (by design), and no
+  Mac/Xcode is available to check iOS; verified via `uiautomator` accessibility dumps instead (see
+  Phase 9's Manual verification section).
+- The removable-tag "✕" chip affordance (Phase 9) has a smaller-than-44pt touch target by
+  deliberate choice — see `TagRemoveLabel`'s doc comment in `Styles.xaml`.
+- The five item-form pages' tag-chip `DataTemplate` (Phase 4-9) remains duplicated across all five
+  `.xaml` files rather than extracted into a shared custom control — each binds `RemoveTagCommand`
+  against its own ViewModel type, and Phase 9 only consolidated the chip's *visual* style
+  (`TagChipBorder`/`TagRemoveLabel`), not its markup structure, judging a custom control more
+  engineering than a polish phase called for.
+- No design-token audit beyond the specific inconsistencies this phase actually found (hardcoded
+  reds, the `SubHeadline`-for-captions misuse, non-theme-aware chip backgrounds, the 40px star
+  column) — spacing/padding differences between page *kinds* that already differ in purpose (e.g.
+  Setup/Lock/SecurityWarning's centered 30/20 layout vs. the item-forms'/tool-pages' 20/16 field
+  list) were reviewed and judged intentional, not inconsistencies to unify.

@@ -12,7 +12,8 @@
             <Label
                 Text="⚠️"
                 FontSize="48"
-                HorizontalTextAlignment="Center" />
+                HorizontalTextAlignment="Center"
+                SemanticProperties.Description="Uyarı" />
 
             <Label
                 Text="Güvenlik Uyarısı"

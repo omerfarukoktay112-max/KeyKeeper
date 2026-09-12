@@ -24,6 +24,15 @@ namespace KeyKeeper.Behaviors;
 /// directly through the XAML/style engine, outside the DI container, so there's no constructor
 /// for the container to inject into — this is the standard MAUI pattern for behaviors/converters
 /// that need a DI-registered service.
+///
+/// Phase 9 also folded a second, unrelated concern in here — a subtle page-appear fade-in (opacity
+/// 0→1 over 180ms, <see cref="OnAppearing"/>'s last line) — rather than a separate behavior class.
+/// A style's <c>Behaviors</c> setter only successfully attaches a single behavior instance in this
+/// codebase's XAML source-generation setup (a second sibling under the same
+/// <c>Setter.Value</c> fails to compile: <c>MAUIX2002</c>), and <see cref="Page.Appearing"/> is
+/// already this class's own hook — reusing it for a second, independent app-wide effect was less
+/// code than introducing a multi-behavior attachment mechanism just to keep the two concerns in
+/// separate classes.
 /// </summary>
 public sealed class PageActivityBehavior : Behavior<Page>
 {
@@ -54,6 +63,17 @@ public sealed class PageActivityBehavior : Behavior<Page>
             _descendantsAttached = true;
             AttachToDescendants(page);
         }
+
+        if (sender is Page fadingPage)
+        {
+            FadeIn(fadingPage);
+        }
+    }
+
+    private static async void FadeIn(Page page)
+    {
+        page.Opacity = 0;
+        await page.FadeTo(1, 180, Easing.CubicOut);
     }
 
     private void AttachToDescendants(IVisualTreeElement node)

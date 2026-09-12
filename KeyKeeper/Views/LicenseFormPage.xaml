@@ -18,7 +18,7 @@
                 <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding LicenseKey}" />
             </Grid>
 
-            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource SubHeadline}" />
+            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource StatusCaption}" />
 
             <HorizontalStackLayout Spacing="10">
                 <Switch IsToggled="{Binding HasExpiry}" />
@@ -33,10 +33,10 @@
             <FlexLayout BindableLayout.ItemsSource="{Binding Tags}" Wrap="Wrap" Direction="Row" JustifyContent="Start">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
-                        <Border Padding="10,4" Margin="0,0,6,6" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource Gray200}">
+                        <Border Style="{StaticResource TagChipBorder}">
                             <HorizontalStackLayout Spacing="6">
-                                <Label Text="{Binding .}" VerticalOptions="Center" />
-                                <Label Text="✕" VerticalOptions="Center" TextColor="Red">
+                                <Label Text="{Binding .}" VerticalOptions="Center" SemanticProperties.Description="{Binding ., StringFormat='Etiket: {0}'}" />
+                                <Label Text="✕" VerticalOptions="Center" Style="{StaticResource TagRemoveLabel}" SemanticProperties.Description="{Binding ., StringFormat='Etiketi kaldır: {0}'}">
                                     <Label.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding BindingContext.RemoveTagCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" />
                                     </Label.GestureRecognizers>
@@ -51,12 +51,12 @@
                 <Button Grid.Column="1" Text="Ekle" Command="{Binding AddTagCommand}" />
             </Grid>
 
-            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
 
             <Button Text="Kaydet" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
-            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" BackgroundColor="Red" HorizontalOptions="Fill" />
+            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
 
         </VerticalStackLayout>
     </ScrollView>

@@ -15,6 +15,7 @@
                 HorizontalTextAlignment="Center" />
 
             <Entry
+                x:Name="PasswordEntry"
                 Placeholder="Ana şifre"
                 Text="{Binding Password}"
                 IsPassword="True"
@@ -23,13 +24,13 @@
 
             <Label
                 Text="{Binding ErrorMessage}"
-                TextColor="Red"
+                Style="{StaticResource ErrorLabel}"
                 IsVisible="{Binding HasError}"
                 HorizontalTextAlignment="Center" />
 
             <Label
                 Text="{Binding LockoutRemainingText, StringFormat='Kalan süre: {0}'}"
-                TextColor="Red"
+                Style="{StaticResource ErrorLabel}"
                 IsVisible="{Binding IsLockedOut}"
                 HorizontalTextAlignment="Center"
                 FontAttributes="Bold" />

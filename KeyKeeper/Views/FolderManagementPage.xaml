@@ -12,7 +12,7 @@
             <Entry Placeholder="Yeni klasör adı" Text="{Binding NewFolderName}" />
             <Picker Title="Üst klasör" ItemsSource="{Binding ParentOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedParentOption}" />
             <Button Text="Klasör Oluştur" Command="{Binding CreateFolderCommand}" HorizontalOptions="Fill" />
-            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" />
         </VerticalStackLayout>
 
         <BoxView Grid.Row="1" HeightRequest="1" />
@@ -28,7 +28,7 @@
                         <Button Grid.Column="1" Text="Yeniden Adlandır"
                                 Command="{Binding BindingContext.RenameCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
                                 CommandParameter="{Binding .}" />
-                        <Button Grid.Column="2" Text="Sil" BackgroundColor="Red"
+                        <Button Grid.Column="2" Text="Sil" Style="{StaticResource DangerButton}"
                                 Command="{Binding BindingContext.DeleteCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
                                 CommandParameter="{Binding .}" />
                     </Grid>

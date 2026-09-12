@@ -34,7 +34,7 @@
 
             <Label
                 Text="{Binding ErrorMessage}"
-                TextColor="Red"
+                Style="{StaticResource ErrorLabel}"
                 IsVisible="{Binding HasError}"
                 HorizontalTextAlignment="Center" />
 

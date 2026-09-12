@@ -187,6 +187,92 @@
         <Setter Property="HorizontalTextAlignment" Value="Center" />
     </Style>
 
+    <!--
+    Phase 9 polish: named styles factored out of what had been ad hoc, page-by-page inline
+    styling (plain TextColor="Red", BackgroundColor="Red", and reusing "SubHeadline" — a 24pt
+    page-subtitle style — for small transient status captions like "Panoya kopyalandı..."). Every
+    page that shows an error, a destructive action, a status caption, or a removable tag chip now
+    references one of these instead of repeating (and inconsistently theming) the same values.
+    -->
+
+    <!-- An inline error/validation message below a field or form (e.g. "Ana parola yanlış.",
+         "Bir başlık girin."). Deliberately does not set FontSize/alignment — those still vary
+         legitimately per page (centered on Setup/Lock's single-column layout, left-aligned in a
+         field list) — only the color, so every error reads as the same "this is an error" red in
+         both themes instead of each page's own hardcoded "Red" (poor contrast against the dark
+         theme's near-black page background). -->
+    <Style TargetType="Label" x:Key="ErrorLabel">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource ErrorTextLight}, Dark={StaticResource ErrorTextDark}}" />
+    </Style>
+
+    <!-- A small, muted, transient status caption (clipboard-cleared countdowns, "Yedek
+         oluşturuldu.", "İçe aktarma iptal edildi." ...) — distinct from SubHeadline (a 24pt page
+         subtitle) which several pages had been reusing here purely because it was already
+         in scope, not because a status caption should look like a page heading. -->
+    <Style TargetType="Label" x:Key="StatusCaption">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray300}}" />
+        <Setter Property="HorizontalTextAlignment" Value="Center" />
+    </Style>
+
+    <!-- A destructive action ("Sil", CSV's unencrypted-export button) — same Button style as
+         everywhere else, just themed red instead of the default Primary, and always white text
+         (a hardcoded "Red" background previously paired with the base Button style's normal
+         light/dark TextColor, which is fine in light mode but low-contrast dark grey-on-red in
+         dark mode). -->
+    <Style TargetType="Button" x:Key="DangerButton">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource DangerLight}, Dark={StaticResource DangerDark}}" />
+        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,10" />
+        <Setter Property="MinimumHeightRequest" Value="44" />
+        <Setter Property="MinimumWidthRequest" Value="44" />
+    </Style>
+
+    <!-- The removable-tag-chip Border every item form repeats (its own DataTemplate can't be
+         shared as easily — each form binds RemoveTagCommand against its own ViewModel type — but
+         the chip's visual style can be, and now is). -->
+    <Style TargetType="Border" x:Key="TagChipBorder">
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Margin" Value="0,0,6,6" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+    </Style>
+
+    <!-- The "✕" remove-tag affordance inside a TagChipBorder. Padded (Label.Padding), not just a
+         bare glyph, so its actual tap target is closer to a comfortable touch size than the ~16pt
+         glyph alone would be — a full 44x44pt target would make every chip enormous, so this is a
+         deliberate, smaller-than-guideline compromise for a dense, secondary control (see
+         ARCHITECTURE.md's Phase 9 notes). -->
+    <Style TargetType="Label" x:Key="TagRemoveLabel">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource ErrorTextLight}, Dark={StaticResource ErrorTextDark}}" />
+        <Setter Property="Padding" Value="6,6" />
+    </Style>
+
+    <!-- The "here's your result" card (PasswordGeneratorPage's generated password,
+         LoginFormPage's live TOTP code) — same Padding/StrokeShape/background repeated in both
+         before this, only the BackgroundColor wasn't yet theme-aware for dark mode. -->
+    <Style TargetType="Border" x:Key="ResultCard">
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 12" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+    </Style>
+
+    <!-- The folder/tag filter chips on VaultListPage — unselected state; DataTrigger in each
+         page still switches BackgroundColor to Primary/PrimaryDark when selected (a per-instance
+         binding, not expressible in a shared style). -->
+    <Style TargetType="Border" x:Key="FilterChipBorder">
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="StrokeShape" Value="RoundRectangle 16" />
+        <Setter Property="Stroke" Value="Transparent" />
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
+    </Style>
+
     <Style TargetType="Picker">
         <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />
         <Setter Property="TitleColor" Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
@@ -405,7 +491,9 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}" />
         <!-- Reports user activity (see behaviors:PageActivityBehavior's doc comment) to the
-             inactivity auto-lock timer on every page app-wide, with no per-page wiring. -->
+             inactivity auto-lock timer on every page app-wide, with no per-page wiring; also
+             fades every page in on appearing (Phase 9 — see that same class's doc comment for
+             why the fade-in lives here rather than in its own behavior). -->
         <Setter Property="Behaviors">
             <Setter.Value>
                 <behaviors:PageActivityBehavior />

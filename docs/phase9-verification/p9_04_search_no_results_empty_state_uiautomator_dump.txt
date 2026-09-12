@@ -1,0 +1,12 @@
+text="Kasa"
+text="Ekle"
+text="Klasörler"
+text="Şifre Üret"
+text="Yedekleme"
+text="Kilitle"
+text="zzznotfound"
+text="Tümü"
+text="Klasörsüz"
+text="onemli"
+text="Yalnızca favoriler"
+text='"zzznotfound" için sonuç bulunamadı.'

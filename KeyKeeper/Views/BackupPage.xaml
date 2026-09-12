@@ -18,24 +18,24 @@
             <BoxView HeightRequest="1" Margin="0,4" />
 
             <Label Text="Yedek Oluştur (.vault)" FontAttributes="Bold" />
-            <Label Text="Tüm kasanızın şifreli, taşınabilir bir kopyasını oluşturur." Style="{StaticResource SubHeadline}" />
+            <Label Text="Tüm kasanızın şifreli, taşınabilir bir kopyasını oluşturur." Style="{StaticResource StatusCaption}" HorizontalTextAlignment="Start" />
             <Button Text="Yedek Oluştur (.vault)" Command="{Binding ExportVaultCommand}" IsEnabled="{Binding AreActionsEnabled}" HorizontalOptions="Fill" />
 
             <BoxView HeightRequest="1" Margin="0,4" />
 
             <Label Text="Yedekten Geri Yükle" FontAttributes="Bold" />
-            <Label Text="Bir .vault dosyası seçin -- mevcut kasanızın tüm içeriği, dosyadakiyle DEĞİŞTİRİLİR." Style="{StaticResource SubHeadline}" />
+            <Label Text="Bir .vault dosyası seçin -- mevcut kasanızın tüm içeriği, dosyadakiyle DEĞİŞTİRİLİR." Style="{StaticResource StatusCaption}" HorizontalTextAlignment="Start" />
             <Button Text="Yedekten Geri Yükle" Command="{Binding ImportVaultCommand}" IsEnabled="{Binding AreActionsEnabled}" HorizontalOptions="Fill" />
 
             <BoxView HeightRequest="1" Margin="0,4" />
 
-            <Label Text="CSV Olarak Dışa Aktar" FontAttributes="Bold" TextColor="Red" />
-            <Label Text="Tüm parolalarınız dahil, ŞİFRESİZ düz metin olarak dışa aktarır. Yalnızca gerektiğinde kullanın." Style="{StaticResource SubHeadline}" />
-            <Button Text="CSV Olarak Dışa Aktar (Uyarılı)" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding AreActionsEnabled}" BackgroundColor="Red" HorizontalOptions="Fill" />
+            <Label Text="CSV Olarak Dışa Aktar" FontAttributes="Bold" Style="{StaticResource ErrorLabel}" />
+            <Label Text="Tüm parolalarınız dahil, ŞİFRESİZ düz metin olarak dışa aktarır. Yalnızca gerektiğinde kullanın." Style="{StaticResource StatusCaption}" HorizontalTextAlignment="Start" />
+            <Button Text="CSV Olarak Dışa Aktar (Uyarılı)" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding AreActionsEnabled}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
-            <Label Text="{Binding StatusMessage}" IsVisible="{Binding HasStatusMessage}" HorizontalTextAlignment="Center" />
-            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" HorizontalTextAlignment="Center" />
+            <Label Text="{Binding StatusMessage}" IsVisible="{Binding HasStatusMessage}" Style="{StaticResource StatusCaption}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" HorizontalTextAlignment="Center" />
 
         </VerticalStackLayout>
     </ScrollView>

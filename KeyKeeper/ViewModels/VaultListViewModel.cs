@@ -90,6 +90,39 @@ public sealed partial class VaultListViewModel : ObservableObject
 
     public bool HasItems => !IsEmpty;
 
+    /// <summary>Phase 9: a distinct, actionable empty state instead of one static "henüz öğe yok"
+    /// message for every reason <see cref="Items"/> could be empty — an unfiltered empty vault, a
+    /// search with no matches, and an empty folder/tag/favorites filter each read differently, and
+    /// only the first of those is something a button on this page can actually fix.</summary>
+    public string EmptyStateMessage
+    {
+        get
+        {
+            if (_allItems.Count == 0)
+            {
+                return "Henüz öğe yok. Başlamak için ilk öğeni ekle.";
+            }
+
+            string query = SearchText?.Trim() ?? string.Empty;
+            if (query.Length > 0)
+            {
+                return $"\"{query}\" için sonuç bulunamadı.";
+            }
+
+            return _selectedFolderFilter?.Kind switch
+            {
+                FolderFilterKind.Specific => "Bu klasörde henüz öğe yok.",
+                FolderFilterKind.Unfiled => "Klasörsüz öğe yok.",
+                _ => "Bu filtrelerle eşleşen öğe yok.",
+            };
+        }
+    }
+
+    /// <summary>Only the "vault is genuinely empty" case gets a call to action -- a search or
+    /// folder/tag/favorites filter that happens to match nothing isn't fixed by adding a new item,
+    /// it's fixed by changing or clearing the filter.</summary>
+    public bool ShowAddFirstItemButton => IsEmpty && _allItems.Count == 0;
+
     [ObservableProperty]
     private bool isBiometricAvailable;
 
@@ -208,6 +241,8 @@ public sealed partial class VaultListViewModel : ObservableObject
         }
 
         IsEmpty = Items.Count == 0;
+        OnPropertyChanged(nameof(EmptyStateMessage));
+        OnPropertyChanged(nameof(ShowAddFirstItemButton));
     }
 
     private bool MatchesFolder(VaultItemListEntry entry) => _selectedFolderFilter?.Kind switch

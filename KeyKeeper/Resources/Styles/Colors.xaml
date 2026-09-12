@@ -27,6 +27,14 @@
     <Color x:Key="Gray900">#212121</Color>
     <Color x:Key="Gray950">#141414</Color>
 
+    <!-- Phase 9: semantic colors for error text and destructive ("danger") actions — previously
+         every page hardcoded plain "Red" for both, which is legible in light mode but low-contrast
+         and harsh against the dark theme's near-black page background (OffBlack, #1f1f1f). -->
+    <Color x:Key="ErrorTextLight">#B00020</Color>
+    <Color x:Key="ErrorTextDark">#FF8A80</Color>
+    <Color x:Key="DangerLight">#C62828</Color>
+    <Color x:Key="DangerDark">#EF5350</Color>
+
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
     <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}"/>
     <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}"/>

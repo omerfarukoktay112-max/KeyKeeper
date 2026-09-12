@@ -21,7 +21,7 @@
 
             <ProgressBar Progress="{Binding PasswordStrengthFraction}" ProgressColor="{Binding PasswordStrengthColor}" IsVisible="{Binding HasPasswordStrength}" />
             <Label Text="{Binding PasswordStrengthLabel}" TextColor="{Binding PasswordStrengthColor}" FontAttributes="Bold" IsVisible="{Binding HasPasswordStrength}" />
-            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource SubHeadline}" />
+            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource StatusCaption}" />
 
             <Entry Placeholder="URL" Text="{Binding Url}" Keyboard="Url" />
 
@@ -30,9 +30,9 @@
                 <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleTotpSecretVisibilityCommand}" />
             </Grid>
 
-            <Label Text="{Binding TotpError}" TextColor="Red" IsVisible="{Binding HasTotpError}" />
+            <Label Text="{Binding TotpError}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasTotpError}" />
 
-            <Border Padding="16" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource Gray200}" IsVisible="{Binding HasTotpCode}">
+            <Border Style="{StaticResource ResultCard}" IsVisible="{Binding HasTotpCode}">
                 <HorizontalStackLayout Spacing="14">
                     <Label Text="{Binding TotpDisplayCode}" FontFamily="Courier" FontSize="28" FontAttributes="Bold" VerticalOptions="Center" />
                     <Label Text="{Binding TotpRemainingSeconds, StringFormat='{0}sn'}" VerticalOptions="Center" Style="{StaticResource SubHeadline}" />
@@ -45,10 +45,10 @@
             <FlexLayout BindableLayout.ItemsSource="{Binding Tags}" Wrap="Wrap" Direction="Row" JustifyContent="Start">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
-                        <Border Padding="10,4" Margin="0,0,6,6" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource Gray200}">
+                        <Border Style="{StaticResource TagChipBorder}">
                             <HorizontalStackLayout Spacing="6">
-                                <Label Text="{Binding .}" VerticalOptions="Center" />
-                                <Label Text="✕" VerticalOptions="Center" TextColor="Red">
+                                <Label Text="{Binding .}" VerticalOptions="Center" SemanticProperties.Description="{Binding ., StringFormat='Etiket: {0}'}" />
+                                <Label Text="✕" VerticalOptions="Center" Style="{StaticResource TagRemoveLabel}" SemanticProperties.Description="{Binding ., StringFormat='Etiketi kaldır: {0}'}">
                                     <Label.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding BindingContext.RemoveTagCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" />
                                     </Label.GestureRecognizers>
@@ -63,12 +63,12 @@
                 <Button Grid.Column="1" Text="Ekle" Command="{Binding AddTagCommand}" />
             </Grid>
 
-            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" />
+            <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
 
             <Button Text="Kaydet" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
-            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" BackgroundColor="Red" HorizontalOptions="Fill" />
+            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
 
         </VerticalStackLayout>
     </ScrollView>
