@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KeyKeeper.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+    <!-- Deliberately no SQLitePCLRaw bundle here: which native SQLite engine backs this
+         (SQLCipher vs. plain SQLite) is a composition-root decision made once via
+         SQLitePCL.raw.SetProvider(...); see MauiProgram.cs (production, e_sqlcipher) and
+         KeyKeeper.Core.Tests (test-only, plain e_sqlite3). -->
+    <PackageReference Include="sqlite-net-pcl" Version="1.11.285" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="KeyKeeper.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:KeyKeeper.Views"
+    FlyoutBehavior="Disabled"
+    Title="KeyKeeper">
+
+    <!--
+    Three top-level destinations, each its own implicit ShellItem/ShellSection/ShellContent
+    (skipping explicit ShellItem/ShellSection tags is fine — Shell auto-wraps a bare ShellContent
+    in one of each). That's deliberate, not just the terse option: an absolute GoToAsync("//x")
+    call requires its target to be reachable as a full page stack on its own, which only a real
+    ShellContent in this visual hierarchy provides — a route registered purely via
+    Routing.RegisterRoute (no ShellContent) can only be pushed relatively onto an existing stack,
+    not navigated to absolutely as the entire stack. (Learned the hard way: the initial version
+    of this file declared only "lock" here and registered "setup"/"vault" as RegisterRoute-only
+    global routes, which crashed on startup with "Global routes currently cannot be the only page
+    on the stack" the moment App.xaml.cs tried GoToAsync("//setup").)
+
+    FlyoutBehavior="Disabled" hides the flyout hamburger that three top-level ShellItems would
+    otherwise imply; no tab bar appears either, since tabs are a ShellSection-level construct
+    (multiple ShellContent under one ShellSection), not something three separate ShellItems
+    trigger. App.xaml.cs decides which of the three is actually shown, immediately on startup —
+    see its CreateWindow override — so "setup" being first here (Shell's own default) is
+    inconsequential.
+    -->
+    <ShellContent
+        Route="setup"
+        ContentTemplate="{DataTemplate views:SetupPage}" />
+
+    <ShellContent
+        Route="lock"
+        ContentTemplate="{DataTemplate views:LockPage}" />
+
+    <ShellContent
+        Route="vault"
+        ContentTemplate="{DataTemplate views:VaultListPage}" />
+
+    <!--
+    The five item-type form pages (Phase 4) are deliberately NOT declared as ShellContent here —
+    unlike "setup"/"lock"/"vault" above, nothing ever navigates to them absolutely (GoToAsync
+    "//login-form" etc.); they're only ever pushed relatively on top of "vault"
+    (GoToAsync("login-form") or ".../login-form?id=...") from VaultListViewModel, so the
+    RegisterRoute-only global-route form is exactly right for them — see AppShell.xaml.cs.
+    -->
+
+</Shell>

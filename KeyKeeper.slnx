@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="KeyKeeper.Core.Tests/KeyKeeper.Core.Tests.csproj" />
+  <Project Path="KeyKeeper.Core/KeyKeeper.Core.csproj" />
+  <Project Path="KeyKeeper/KeyKeeper.csproj" />
+</Solution>

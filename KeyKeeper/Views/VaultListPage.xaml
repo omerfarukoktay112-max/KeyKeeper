@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
+             x:Class="KeyKeeper.Views.VaultListPage"
+             x:DataType="viewmodels:VaultListViewModel"
+             Title="Kasa">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Ekle" Command="{Binding AddCommand}" />
+        <ToolbarItem Text="Kilitle" Command="{Binding LockCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,*" Padding="0">
+
+        <VerticalStackLayout Grid.Row="0" Padding="20,12" Spacing="8">
+            <Button
+                Text="Biyometrik Kilidi Etkinleştir"
+                Command="{Binding EnableBiometricUnlockCommand}"
+                IsVisible="{Binding IsBiometricAvailable}"
+                HorizontalOptions="Fill" />
+            <Label
+                Text="{Binding BiometricStatusMessage}"
+                IsVisible="{Binding HasBiometricStatusMessage}"
+                HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+
+        <Label
+            Grid.Row="1"
+            Text="Henüz öğe yok. Eklemek için sağ üstteki &quot;Ekle&quot; düğmesine dokunun."
+            IsVisible="{Binding IsEmpty}"
+            Style="{StaticResource SubHeadline}"
+            HorizontalTextAlignment="Center"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            Padding="30" />
+
+        <CollectionView
+            Grid.Row="1"
+            ItemsSource="{Binding Items}"
+            IsVisible="{Binding HasItems}"
+            x:DataType="viewmodels:VaultListViewModel">
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:VaultItemListEntry">
+                    <Grid Padding="16,12" ColumnDefinitions="48,*" ColumnSpacing="14">
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding BindingContext.OpenCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
+                                CommandParameter="{Binding .}" />
+                        </Grid.GestureRecognizers>
+
+                        <Border
+                            Grid.Column="0"
+                            HeightRequest="44"
+                            WidthRequest="44"
+                            StrokeShape="RoundRectangle 22"
+                            Stroke="Transparent"
+                            BackgroundColor="{Binding Color}">
+                            <Label
+                                Text="{Binding Icon}"
+                                FontSize="20"
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                            <Label Text="{Binding Title}" FontAttributes="Bold" />
+                            <Label Text="{Binding Subtitle}" Style="{StaticResource SubHeadline}" FontSize="13" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</ContentPage>

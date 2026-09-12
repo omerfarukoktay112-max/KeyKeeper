@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<!-- allowBackup=false: this app's private storage holds the SQLCipher-encrypted vault
+	     database. Auto Backup (and, on Android 12+, cloud backup / device-to-device transfer,
+	     which allowBackup governs regardless of dataExtractionRules) must never copy it off
+	     the device; the vault stays wherever the user explicitly puts it, never a backup. -->
+	<application android:allowBackup="false" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true"></application>
+</manifest>

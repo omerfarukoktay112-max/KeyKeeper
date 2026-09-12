@@ -1,0 +1,27 @@
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: FATAL EXCEPTION: main
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: Process: com.companyname.keykeeper, PID: 12135
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: java.lang.IllegalStateException: Must be called from main thread of fragment host
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: 	at androidx.fragment.app.FragmentManager.ensureExecReady(FragmentManager.java:1959)
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: 	at androidx.fragment.app.FragmentManager.execPendingActions(FragmentManager.java:2027)
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: 	at androidx.fragment.app.FragmentManager.executePendingTransactions(FragmentManager.java:779)
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: 	at androidx.biometric.BiometricPrompt.findOrAddBiometricFragment(BiometricPrompt.java:1082)
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: 	at androidx.biometric.BiometricPrompt.authenticateInternal(BiometricPrompt.java:992)
+09-11 20:42:32.099 12135 12135 E AndroidRuntime: 	at androidx.biometric.BiometricPrompt.authenticate(BiometricPrompt.java:972)
+09-11 20:42:32.103 12135 12135 W monodroid-assembly: Shared library 'liblog' not loaded, p/invoke '__android_log_print' may fail
+09-11 20:42:32.115 12135 12135 I MonoDroid: UNHANDLED EXCEPTION:
+09-11 20:42:32.168 12135 12135 I MonoDroid: Java.Lang.IllegalStateException: Must be called from main thread of fragment host
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at Java.Interop.JniEnvironment.InstanceMethods.CallVoidMethod(JniObjectReference instance, JniMethodInfo method, JniArgumentValue* args)
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at Java.Interop.JniPeerMembers.JniInstanceMethods.InvokeVirtualVoidMethod(String encodedMember, IJavaPeerable self, JniArgumentValue* parameters)
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at AndroidX.Biometric.BiometricPrompt.Authenticate(PromptInfo info)
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at KeyKeeper.Services.BiometricAuthService.AuthenticateAsync(String reason)
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at KeyKeeper.Core.Auth.AuthenticationService.TryUnlockWithBiometricsAsync()
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at KeyKeeper.ViewModels.LockViewModel.UnlockWithBiometricsAsync()
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at CommunityToolkit.Mvvm.Input.AsyncRelayCommand.AwaitAndThrowIfFailed(Task executionTask)
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at System.Threading.Tasks.Task.<>c.<ThrowAsync>b__124_0(Object state)
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at Android.App.SyncContext.<>c__DisplayClass2_0.<Post>b__0()
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at Java.Lang.Thread.RunnableImplementor.Run()
+09-11 20:42:32.168 12135 12135 I MonoDroid:    at Java.Lang.IRunnableInvoker.n_Run(IntPtr jnienv, IntPtr native__this)
+09-11 20:42:32.168 12135 12135 I MonoDroid:   --- End of managed Java.Lang.IllegalStateException stack trace ---
+09-11 20:42:32.168 12135 12135 I MonoDroid: java.lang.IllegalStateException: Must be called from main thread of fragment host
+09-11 20:42:32.168 12135 12135 I MonoDroid: 	at androidx.fragment.app.FragmentManager.ensureExecReady(FragmentManager.java:1959)
+09-11 20:42:32.168 12135 12135 I MonoDroid: 	at androidx.fragment.app.FragmentManager.execPendingActions(FragmentManager.java:2027)

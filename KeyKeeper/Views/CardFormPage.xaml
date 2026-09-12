@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
+             x:Class="KeyKeeper.Views.CardFormPage"
+             x:DataType="viewmodels:CardFormViewModel"
+             Title="Kart">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Entry Placeholder="Başlık" Text="{Binding Title}" />
+            <Entry Placeholder="Kart üzerindeki isim" Text="{Binding CardholderName}" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" Placeholder="Kart numarası" Text="{Binding CardNumber}" IsPassword="{Binding IsCardNumberMasked}" Keyboard="Numeric" />
+                <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleCardNumberVisibilityCommand}" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Entry Grid.Column="0" Placeholder="Ay (AA)" Text="{Binding ExpiryMonthText}" Keyboard="Numeric" MaxLength="2" />
+                <Entry Grid.Column="1" Placeholder="Yıl (YYYY)" Text="{Binding ExpiryYearText}" Keyboard="Numeric" MaxLength="4" />
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" Placeholder="CVV" Text="{Binding Cvv}" IsPassword="{Binding IsCvvMasked}" Keyboard="Numeric" MaxLength="4" />
+                <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleCvvVisibilityCommand}" />
+            </Grid>
+
+            <Picker
+                Title="Kart türü"
+                ItemsSource="{x:Static viewmodels:CardFormViewModel.CardTypeOptions}"
+                SelectedIndex="{Binding CardTypeIndex}" />
+
+            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+
+            <Button Text="Kaydet" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
+            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" BackgroundColor="Red" HorizontalOptions="Fill" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
