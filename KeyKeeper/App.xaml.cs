@@ -12,7 +12,7 @@ namespace KeyKeeper
             _auth = auth;
 
             // The single place deciding "go to the lock screen" for every path that can lock
-            // the vault -- the explicit "Kilitle" button on VaultPlaceholderPage and the
+            // the vault -- the explicit "Kilitle" button on VaultListPage and the
             // inactivity auto-lock timer both end up here via AuthenticationService.Lock()
             // raising this event (see IAuthenticationService.Locked's doc comment).
             _auth.Locked += OnVaultLocked;

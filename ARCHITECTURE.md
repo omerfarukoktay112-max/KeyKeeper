@@ -9,16 +9,16 @@ KeyKeeper.slnx
 ├── KeyKeeper/              # .NET MAUI app (net10.0-android, net10.0-ios)
 │   ├── Data/                # (empty — Data/ is now KeyKeeper.Core/Data, see below)
 │   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore
-│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultPlaceholderViewModel (Phase 3 UI — done)
-│   ├── Views/                # SetupPage, LockPage, VaultPlaceholderPage (Phase 3 UI — done)
+│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel + 5 item form ViewModels (Phase 3/4 UI — done)
+│   ├── Views/                # SetupPage, LockPage, VaultListPage + 5 item form pages (Phase 3/4 UI — done)
 │   ├── Resources/            # Standard MAUI resource structure (AppIcon, Fonts, Images, Raw, Splash, Styles)
 │   └── Platforms/            # Platform-specific entry points (Android/, iOS/) — includes BiometricAuthService.cs per platform
 ├── KeyKeeper.Core/          # Plain net10.0 class library — pure logic, no MAUI/UI/platform references
 │   ├── Auth/                  # Unlock/lock orchestration, lockout policy, inactivity timer (Phase 3 — done)
 │   ├── Crypto/               # Key derivation, encryption, master-password verification (Phase 1 — done)
-│   ├── Data/                 # Vault schema, SQLCipher connection service, migrations, unlock-metadata store (Phase 2 — done)
+│   ├── Data/                 # Vault schema, SQLCipher connection service, migrations, unlock-metadata store, item repository (Phase 2/4 — done)
 │   ├── Storage/               # Wrapped-key storage abstraction for biometric unlock (Phase 2 — done)
-│   └── Models/               # Vault item domain models (VaultItemType enum only so far)
+│   └── Models/               # Vault item domain models: LoginItem, CardItem, WifiItem, SecureNoteItem, LicenseItem (Phase 4 — done)
 └── KeyKeeper.Core.Tests/    # xUnit tests for KeyKeeper.Core (net10.0)
     ├── Auth/
     ├── Crypto/
@@ -67,7 +67,7 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 ### Build status
 
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
-  `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3).
+  `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -750,11 +750,211 @@ Also added, all transient (see "Phase 3 UI" above for why transient, not singlet
 `SetupViewModel`/`SetupPage`, `LockViewModel`/`LockPage`,
 `VaultPlaceholderViewModel`/`VaultPlaceholderPage`.
 
+## Phase 4: Item CRUD (`KeyKeeper.Core/Models`, `KeyKeeper.Core/Data`, `KeyKeeper/Views`, `KeyKeeper/ViewModels`)
+
+Fills in the JSON shape inside `VaultItems.EncryptedPayload` (schema-only since Phase 2) with five
+typed item models, a repository to CRUD them, and a real "logged in" UI: `VaultListPage` replaces
+the Phase 3 `VaultPlaceholderPage` stand-in, backed by five per-type add/edit form pages. No
+folders, tags, or search UI this phase — see "out of scope" below.
+
+### Item models (`KeyKeeper.Core/Models`)
+
+Five plain, `System.Text.Json`-serializable records, each implementing `IVaultItemPayload`
+(`static abstract VaultItemType ItemType` + a `Title` every type has):
+- **`LoginItem`**: `Title`, `Username`, `Password`, `Url`, `TotpSecret` (stored Base32, not yet
+  turned into a live TOTP code — that's the later "Araçlar" phase).
+- **`CardItem`**: `Title`, `CardholderName`, `CardNumber`, `ExpiryMonth`/`ExpiryYear` (separate
+  ints, not a formatted "MM/YY" string, so expiry checks never need to parse one), `Cvv`,
+  `CardType` (enum: Visa/Mastercard/American Express/Discover/Diğer).
+- **`WifiItem`**: `Title`, `Ssid`, `Password` (nullable — `Open` networks legitimately have none),
+  `SecurityProtocol` (enum), `IsHidden`.
+- **`SecureNoteItem`**: `Title`, `Content` — the only type with no single "the secret" field
+  singled out for masking; the whole point of a note is that `Content` itself is sensitive.
+- **`LicenseItem`**: `Title`, `LicenseKey`, `SoftwareName`, `ExpiresAtUtc` (nullable — perpetual
+  licenses never expire).
+
+Encryption is one level up, in the repository, not these types' concern — see `IVaultItemPayload`'s
+doc comment for why individual sensitive `string` fields here (passwords, CVVs, license keys, ...)
+aren't independently wiped: the same acknowledged string-boundary tradeoff as `WrappedKeyStorage`'s
+Base64 comment and `SetupViewModel.Password`.
+
+### `IAuthenticationService.EncryptWithVaultKey`/`DecryptWithVaultKey` — new this phase
+
+Before this phase, `AuthenticationService` only used the vault key internally (deriving it,
+handing it to `IVaultDatabaseService` to open SQLCipher). `IVaultItemRepository` needs to encrypt
+arbitrary item-payload JSON under that same key, but the raw key itself should never leave
+`AuthenticationService` — so two new methods were added to encrypt/decrypt *through* it instead of
+exposing the key: `EncryptWithVaultKey(byte[])`/`DecryptWithVaultKey(byte[])`, both throwing
+`InvalidOperationException` when the vault is locked. Key custody stays exactly as narrow as it
+already was for Phases 1-3; only what can be done *with* the key got wider.
+
+### Repository — `IVaultItemRepository` / `VaultItemRepository` (`KeyKeeper.Core/Data`)
+
+CRUD (`Create<TPayload>`/`Get`/`List`/`Update<TPayload>`/`Delete`) plus favorite/folder/tag
+management (`SetFavorite`, `SetFolder`, `AddTag`/`RemoveTag`) against the `VaultItems`/`Tags`/
+`ItemTags` tables `VaultSchema` already created in Phase 2. Synchronous, not `Task`-returning,
+matching every other Data-layer type — these are local SQLite calls, not the kind of slow I/O that
+warrants async.
+
+- **Generic over `TPayload : IVaultItemPayload`**: `Create`/`Update` take the payload's own CLR
+  type, reading `TPayload.ItemType` (the static abstract member) to know what to store in the
+  `ItemType` column — callers can't pass a payload that disagrees with itself about its type.
+  `Update` additionally throws `ArgumentException` if the payload's type doesn't match the
+  *existing* stored item's type (an item's type is immutable after creation) and
+  `KeyNotFoundException` if the id doesn't exist.
+- **`VaultItemRecord`**: the decrypted return shape — `Payload` is boxed as `object` (not generic),
+  because `List()` returns a heterogeneous mix of item types in one call; callers pattern-match on
+  `ItemType` to know which concrete type `Payload` actually is.
+- **Memory hygiene**: `EncryptPayload` serializes straight to a `byte[]` via
+  `JsonSerializer.SerializeToUtf8Bytes` (never materializing an intermediate JSON `string` at all),
+  encrypts it, then zeroes the buffer in a `finally`; `DecryptPayload` mirrors this on the way back
+  out. The one buffer holding the entire plaintext payload exists only as long as it takes to
+  encrypt/deserialize it.
+- **One opaque `EncryptedPayload` BLOB column**, not per-type columns (a Phase 2 schema decision) —
+  adding a new item type or field to an existing one never needs a migration.
+
+### UI — `VaultListPage` replaces `VaultPlaceholderPage`, five item form pages (`KeyKeeper/Views`, `KeyKeeper/ViewModels`)
+
+`AppShell`'s `"vault"` route now points at `VaultListPage` (previously `VaultPlaceholderPage`,
+which is deleted). The five form pages are deliberately **not** declared as `ShellContent` —
+nothing navigates to them absolutely; they're only ever pushed relatively on top of `"vault"`
+(`GoToAsync("login-form")` or `"login-form?id=..."`) from `VaultListViewModel`, registered as
+plain global routes in `AppShell.xaml.cs`'s constructor (`Routing.RegisterRoute`).
+
+#### `VaultListPage` / `VaultListViewModel`
+
+Keeps the two lock-lifecycle responsibilities the Phase 3 placeholder had (the "Kilitle" button →
+`AuthenticationService.Lock()`; "Biyometrik Kilidi Etkinleştir" → `EnableBiometricUnlockAsync`,
+still needed so `LockPage`'s biometric button has a stored key to use at all) and adds the real
+vault content: a type-filtered-free `CollectionView` of every item (newest-updated first, via
+`IVaultItemRepository.List()`), an "Ekle" toolbar item that opens a `DisplayActionSheet` with the
+five item types, and tap-to-open on any row. `InitializeAsync` (called from `OnAppearing`) reloads
+both the biometric-button visibility and the item list every time the page becomes visible again —
+including on returning from a form page after a create/edit/delete, not just on first load. No
+search, folder/tag filtering UI, or favorites toggle here — `IVaultItemRepository` already supports
+that CRUD; only the UI for it is deferred (see "out of scope" below).
+
+`VaultItemListEntry` flattens a decrypted `VaultItemRecord` into one title/subtitle/icon/color per
+row (computed once via `VaultItemListEntry.From`, instead of the list's `DataTemplate` pattern-
+matching `Payload` itself): a card's subtitle masks its number to `•••• 1234` even in the list, not
+just its own form; a note's subtitle is always the literal "Güvenli not", never its content. Icons
+are a single emoji + flat color per type (🔑/💳/📶/📝/🔖) — a placeholder pairing, not a design pass.
+
+#### `VaultItemFormViewModelBase<TPayload>` — shared add/edit/view logic for all five forms
+
+One page per item type doubles as both its add form and its edit/detail view, distinguished by
+whether `ItemId` is set (from the page's `ApplyQueryAttributes`): `null` means create mode (reached
+from `VaultListPage`'s "Ekle" menu), a real id means edit mode (reached by tapping a list row).
+There's no separate read-only "detail" page — viewing an existing item's fields *is* its edit form,
+initially masked for sensitive fields via each subclass's own per-field "Göster" reveal toggle.
+
+Generic over `TPayload` (not just `IVaultItemPayload`) so `Save` can call
+`IVaultItemRepository.Create<TPayload>`/`Update<TPayload>` directly — the compiler, not a runtime
+switch, guarantees the payload a page builds matches the item type it's the form for. `Save`
+validates only that `Title` isn't blank before persisting; `Delete` (shown only in edit mode, via
+`IsEditMode`) removes the item outright, no confirmation at the ViewModel level (each page's
+code-behind shows an `DisplayAlert` confirmation first — see `LoginFormPage.OnDeleteClicked` for
+the pattern all five follow). Both raise an event (`Saved`/`Deleted`) the page turns into
+`GoToAsync("..")`, the same "ViewModel raises an event, code-behind navigates" split as
+`SetupViewModel.Completed`/`LockViewModel.Unlocked` from Phase 3.
+
+Each of the five concrete ViewModels (`LoginFormViewModel`, `CardFormViewModel`,
+`WifiFormViewModel`, `NoteFormViewModel`, `LicenseFormViewModel`) is a thin subclass: bound
+properties for its type's fields, a per-sensitive-field `IsXVisible`/`IsXMasked` pair + toggle
+command (mirroring `LockPage`'s master-password masking), and `BuildPayload`/`LoadFromPayload`
+overrides. `CardFormViewModel`/`WifiFormViewModel` additionally expose a static `string[]` of
+`Picker` display options (`CardTypeOptions`, `SecurityProtocolOptions`) alongside an int
+`...Index` property that casts directly to/from the corresponding enum — index N must stay enum
+value N since there's no separate lookup.
+
+### Manual verification — Phase 4 UI on the Android emulator
+
+Driven on a running `pixel_7_-_api_36_0` emulator (Android 16) via `adb shell input tap`/`input
+text` against coordinates read from `adb shell uiautomator dump`, with `adb shell screencap` for
+screenshots — same tooling as Phase 3. Screenshots referenced below are checked into
+`docs/phase4-verification/` in this repo.
+
+**Setup**: created a fresh vault (`01-vault-empty.png` — empty-state message, "Ekle"/"Kilitle"
+toolbar).
+
+**Scenario 1 — create one item of each of the five types**, via "Ekle" → type → fill fields →
+"Kaydet", confirming after each save that the new row appears in the list with the right
+icon/title/subtitle and prior items are undisturbed:
+- Login "GitHub" / user "octocat" (`02-login-form-filled.png`, `03-list-after-login.png`).
+- Card "Ana Kartim", Visa, masked to `•••• 1111` in the list (`04-card-form-filled.png`,
+  `05-list-after-card.png`).
+- WiFi "Ev WiFi" / SSID `EvAgi_5G`, WPA2 (`06-wifi-form-filled.png`, `07-list-after-wifi.png`).
+- Secure Note "Wi-Fi Yedek Kodlari", subtitle correctly showing the literal "Güvenli not" rather
+  than its content (`08-note-form-filled.png`, `09-list-after-note.png`).
+- License "Office 365" / "Microsoft" (`10-license-form-filled.png`).
+
+**Scenario 2 — lock/unlock round-trip preserves all five items**: the vault auto-locked itself
+mid-session (`11-locked-after-license.png` — see the inactivity-timer finding below) rather than
+via the manual "Kilitle" button this time, which if anything is a stronger test: unlocking again
+with the master password (`12-unlocked-all-five-items.png`) shows all five items still present with
+correct icons/titles/subtitles, confirming the SQLCipher-encrypted rows and each item's per-payload
+AES-GCM envelope both survived a real close-and-reopen of the database connection, not just an
+in-memory list that happened not to be cleared.
+
+**Scenario 3 — decrypted round-trip, full field verification, not just list subtitles**: opening
+the Card item in edit mode and revealing both masked fields via "Göster" showed every field exactly
+as entered — `4111111111111111` / `123` / `12` / `2028` / "John Doe" / "Ana Kartim" / "Visa"
+(`13-card-edit-revealed.png`). Opening the Login item and revealing its password similarly showed
+`Username=octocat`, `Password=S3cretPass`, `Url=https://github.com` exactly as entered
+(`14-login-edit-revealed.png`). This confirms the encrypt-serialize/decrypt-deserialize round trip
+for every field, not just the two the list view happens to surface.
+
+**Two findings from driving this manually, neither a Phase 4 regression**:
+- **The Phase 3 inactivity auto-lock fires unconditionally, not on real inactivity**: nothing in
+  the UI layer ever calls `IAuthenticationService.NotifyUserActivity()` — no page wires it to
+  touch/navigation events — so `AuthenticationService`'s 2-minute `AutoLockTimeout` elapses exactly
+  2 minutes after unlock regardless of how actively the app is being used, rather than 2 minutes
+  after the *last* interaction like the name implies. It surfaced here only because filling five
+  forms with screenshots in between took long enough to hit it (confirmed as `11-locked-after-
+  license.png` above). Pre-existing since Phase 3 (`NotifyUserActivity` was added to the interface
+  then but never called from anywhere); not fixed here as it's outside this phase's CRUD scope —
+  worth a dedicated fix (wiring it to `Shell.Current.Navigated` or a tap-through gesture recognizer
+  at the `AppShell` level) before this app is used for real.
+- **`adb shell input text` silently truncates at the first space** unless spaces are encoded as
+  literal `%s` (e.g. `input text "Ana%sKartim"`, not `input text "Ana Kartim"`) — the quoting is
+  consumed by the local shell before reaching the remote `adb shell`, so multi-word values like
+  "Ana Kartim" or "John Doe" arrived as just "Ana"/"John" on the first attempt, caught by dumping
+  the field's value via `uiautomator dump` before saving (not by trusting the screenshot alone) and
+  corrected by clearing the field (`input keyevent --longpress KEYCODE_MOVE_END` + repeated
+  `KEYCODE_DEL`) and retyping with `%s`. A testing-tooling gotcha, not an app bug.
+
+### Tests (`KeyKeeper.Core.Tests/Data/VaultItemRepositoryTests.cs`, plus 4 new cases in `Auth/AuthenticationServiceTests.cs`)
+
+126 tests in the suite as of Phase 4 (up from 98 at the end of Phase 3), all passing. The new
+coverage:
+- **`VaultItemRepositoryTests`** (24 tests, real SQLite + the real crypto stack underneath, same
+  "prefer real cheap components over mocks" style as `WrappedKeyStorageTests`/
+  `VaultUnlockStoreTests`): create-then-get round-trips for all five item types; `Get` on a missing
+  id returns `null`; `Create` on a locked vault propagates `InvalidOperationException`; `List` with
+  and without a type filter; `Update` bumping `UpdatedAtUtc` and rejecting a mismatched payload
+  type or missing id; `Delete` (including the no-op case); favorite/folder set-and-read-back
+  (including clearing a folder via `null`); tag add/remove including de-duplication and two items
+  sharing one `Tags` row; and two memory-hygiene tests confirming the plaintext/decrypted payload
+  buffer is actually zeroed after use, not just discarded.
+- **4 new cases in `AuthenticationServiceTests`** for the new `EncryptWithVaultKey`/
+  `DecryptWithVaultKey` methods: both throw `InvalidOperationException` while locked, a
+  encrypt-then-decrypt round-trip while unlocked, and that decrypting after re-locking throws even
+  if the ciphertext was produced while unlocked.
+
+### Dependency injection (`MauiProgram.cs`)
+
+Added this phase: `IVaultItemRepository` → `VaultItemRepository` (singleton, alongside the other
+backend services). Pages/ViewModels, all transient like Phase 3's: `VaultListViewModel`/
+`VaultListPage` (replacing the removed `VaultPlaceholderViewModel`/`VaultPlaceholderPage`
+registrations) and one transient pair each for `LoginFormViewModel`/`LoginFormPage`,
+`CardFormViewModel`/`CardFormPage`, `WifiFormViewModel`/`WifiFormPage`,
+`NoteFormViewModel`/`NoteFormPage`, `LicenseFormViewModel`/`LicenseFormPage`.
+
 ## Explicitly out of scope so far
 
-- No typed vault item models (`LoginItem`, `CardItem`, etc.), CRUD, folder/tag management, or
-  search (Phase 4) — `VaultItems` is schema only; the JSON shape inside `EncryptedPayload` doesn't
-  exist yet. `VaultPlaceholderPage` is the entire "logged in" experience today.
+- Folder/tag management UI and search/filtering (Phase 5) — `IVaultItemRepository` already
+  supports favorite/folder/tag CRUD (Phase 4); only the UI for it is deferred. `VaultListPage`
+  shows a flat, unfiltered, newest-first list of every item.
 - No on-device/emulator integration tests exercising real SQLCipher key acceptance/rejection
   (see Phase 2's Testing section) — desktop tests cover everything except the actual cipher.
 - The iOS `BiometricAuthService` implementation is unverified against real Face ID/Touch ID
