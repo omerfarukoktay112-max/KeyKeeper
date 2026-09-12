@@ -2,7 +2,9 @@
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Storage;
+using KeyKeeper.Core.Tools;
 using KeyKeeper.Services;
+using CoreIClipboard = KeyKeeper.Core.Tools.IClipboard;
 using KeyKeeper.ViewModels;
 using KeyKeeper.Views;
 using Microsoft.Extensions.Logging;
@@ -61,6 +63,15 @@ namespace KeyKeeper
             builder.Services.AddSingleton<IFolderRepository, FolderRepository>();
             builder.Services.AddSingleton<ITagRepository, TagRepository>();
 
+            // Araçlar (Phase 6): pure-logic pieces are stateless/cheap (or, for the clipboard
+            // clearer, need exactly one shared pending-clear timer app-wide), so all four are
+            // singletons -- same lifetime reasoning as the repositories above.
+            builder.Services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
+            builder.Services.AddSingleton<IPasswordStrengthAnalyzer, PasswordStrengthAnalyzer>();
+            builder.Services.AddSingleton<ITotpGenerator, TotpGenerator>();
+            builder.Services.AddSingleton<CoreIClipboard, MauiClipboard>();
+            builder.Services.AddSingleton<IClipboardClearingService, ClipboardClearingService>();
+
             // KeyKeeper.Services.BiometricAuthService: two separate classes, one per platform,
             // both under this same namespace -- Platforms/Android/BiometricAuthService.cs (built
             // on AndroidX.Biometric) and Platforms/iOS/BiometricAuthService.cs (built on
@@ -92,6 +103,8 @@ namespace KeyKeeper
             builder.Services.AddTransient<LicenseFormPage>();
             builder.Services.AddTransient<FolderManagementViewModel>();
             builder.Services.AddTransient<FolderManagementPage>();
+            builder.Services.AddTransient<PasswordGeneratorViewModel>();
+            builder.Services.AddTransient<PasswordGeneratorPage>();
 
             return builder.Build();
         }

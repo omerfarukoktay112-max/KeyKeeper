@@ -12,9 +12,10 @@
             <Entry Placeholder="Başlık" Text="{Binding Title}" />
             <Entry Placeholder="Kart üzerindeki isim" Text="{Binding CardholderName}" />
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <Entry Grid.Column="0" Placeholder="Kart numarası" Text="{Binding CardNumber}" IsPassword="{Binding IsCardNumberMasked}" Keyboard="Numeric" />
                 <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleCardNumberVisibilityCommand}" />
+                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding CardNumber}" />
             </Grid>
 
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
@@ -22,10 +23,13 @@
                 <Entry Grid.Column="1" Placeholder="Yıl (YYYY)" Text="{Binding ExpiryYearText}" Keyboard="Numeric" MaxLength="4" />
             </Grid>
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <Entry Grid.Column="0" Placeholder="CVV" Text="{Binding Cvv}" IsPassword="{Binding IsCvvMasked}" Keyboard="Numeric" MaxLength="4" />
                 <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleCvvVisibilityCommand}" />
+                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Cvv}" />
             </Grid>
+
+            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource SubHeadline}" />
 
             <Picker
                 Title="Kart türü"

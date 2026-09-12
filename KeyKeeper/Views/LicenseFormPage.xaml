@@ -12,10 +12,13 @@
             <Entry Placeholder="Başlık" Text="{Binding Title}" />
             <Entry Placeholder="Yazılım/kurum adı" Text="{Binding SoftwareName}" />
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <Entry Grid.Column="0" Placeholder="Lisans anahtarı" Text="{Binding LicenseKey}" IsPassword="{Binding IsLicenseKeyMasked}" />
                 <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleLicenseKeyVisibilityCommand}" />
+                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding LicenseKey}" />
             </Grid>
+
+            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource SubHeadline}" />
 
             <HorizontalStackLayout Spacing="10">
                 <Switch IsToggled="{Binding HasExpiry}" />

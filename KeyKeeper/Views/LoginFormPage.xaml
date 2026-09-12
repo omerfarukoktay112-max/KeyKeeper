@@ -12,10 +12,16 @@
             <Entry Placeholder="Başlık" Text="{Binding Title}" />
             <Entry Placeholder="Kullanıcı adı" Text="{Binding Username}" />
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                 <Entry Grid.Column="0" Placeholder="Şifre" Text="{Binding Password}" IsPassword="{Binding IsPasswordMasked}" />
                 <Button Grid.Column="1" Text="Göster" Command="{Binding TogglePasswordVisibilityCommand}" />
+                <Button Grid.Column="2" Text="Üret" Command="{Binding GeneratePasswordCommand}" />
+                <Button Grid.Column="3" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Password}" />
             </Grid>
+
+            <ProgressBar Progress="{Binding PasswordStrengthFraction}" ProgressColor="{Binding PasswordStrengthColor}" IsVisible="{Binding HasPasswordStrength}" />
+            <Label Text="{Binding PasswordStrengthLabel}" TextColor="{Binding PasswordStrengthColor}" FontAttributes="Bold" IsVisible="{Binding HasPasswordStrength}" />
+            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource SubHeadline}" />
 
             <Entry Placeholder="URL" Text="{Binding Url}" Keyboard="Url" />
 
@@ -23,6 +29,15 @@
                 <Entry Grid.Column="0" Placeholder="TOTP anahtarı (opsiyonel)" Text="{Binding TotpSecret}" IsPassword="{Binding IsTotpSecretMasked}" />
                 <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleTotpSecretVisibilityCommand}" />
             </Grid>
+
+            <Label Text="{Binding TotpError}" TextColor="Red" IsVisible="{Binding HasTotpError}" />
+
+            <Border Padding="16" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource Gray200}" IsVisible="{Binding HasTotpCode}">
+                <HorizontalStackLayout Spacing="14">
+                    <Label Text="{Binding TotpDisplayCode}" FontFamily="Courier" FontSize="28" FontAttributes="Bold" VerticalOptions="Center" />
+                    <Label Text="{Binding TotpRemainingSeconds, StringFormat='{0}sn'}" VerticalOptions="Center" Style="{StaticResource SubHeadline}" />
+                </HorizontalStackLayout>
+            </Border>
 
             <Picker Title="Klasör" ItemsSource="{Binding FolderOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedFolderOption}" />
 

@@ -9,9 +9,9 @@ KeyKeeper.slnx
 ├── KeyKeeper/              # .NET MAUI app (net10.0-android, net10.0-ios)
 │   ├── Behaviors/            # PageActivityBehavior — app-wide inactivity-timer activity reporting (post-Phase-4 fix — done)
 │   ├── Data/                # (empty — Data/ is now KeyKeeper.Core/Data, see below)
-│   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore, FolderTreeFlattener (Phase 5 — done)
-│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel + 5 item form ViewModels (Phase 3/4/5 UI — done)
-│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage + 5 item form pages (Phase 3/4/5 UI — done)
+│   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore, FolderTreeFlattener (Phase 5), MauiClipboard (Phase 6 — done)
+│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel, PasswordGeneratorViewModel + 5 item form ViewModels (Phase 3/4/5/6 UI — done)
+│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage, PasswordGeneratorPage + 5 item form pages (Phase 3/4/5/6 UI — done)
 │   ├── Resources/            # Standard MAUI resource structure (AppIcon, Fonts, Images, Raw, Splash, Styles)
 │   └── Platforms/            # Platform-specific entry points (Android/, iOS/) — includes BiometricAuthService.cs per platform
 ├── KeyKeeper.Core/          # Plain net10.0 class library — pure logic, no MAUI/UI/platform references
@@ -19,12 +19,14 @@ KeyKeeper.slnx
 │   ├── Crypto/               # Key derivation, encryption, master-password verification (Phase 1 — done)
 │   ├── Data/                 # Vault schema, SQLCipher connection service, migrations, unlock-metadata store, item/folder/tag repositories, search-text builder (Phase 2/4/5 — done)
 │   ├── Storage/               # Wrapped-key storage abstraction for biometric unlock (Phase 2 — done)
-│   └── Models/               # Vault item domain models: LoginItem, CardItem, WifiItem, SecureNoteItem, LicenseItem (Phase 4 — done)
+│   ├── Models/               # Vault item domain models: LoginItem, CardItem, WifiItem, SecureNoteItem, LicenseItem (Phase 4 — done)
+│   └── Tools/                 # Password generator, strength analyzer, TOTP generator, clipboard auto-clear (Phase 6 — done)
 └── KeyKeeper.Core.Tests/    # xUnit tests for KeyKeeper.Core (net10.0)
     ├── Auth/
     ├── Crypto/
     ├── Data/
-    └── Storage/
+    ├── Storage/
+    └── Tools/
 ```
 
 Note: `KeyKeeper/Data/` (inside the MAUI head project) is intentionally empty — see "Why the storage
@@ -68,7 +70,8 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 ### Build status
 
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
-  `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of Phase 5).
+  `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of
+  Phase 5, 195 as of Phase 6).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -97,7 +100,8 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 | `sqlite-net-pcl` | 1.11.285 | `KeyKeeper.Core` | Typed SQLite ORM/data access (`VaultSchema`, `VaultDatabaseService`, `VaultMigrationService`). |
 | `SQLitePCLRaw.bundle_e_sqlcipher` | 2.1.11 | `KeyKeeper` | SQLCipher-enabled native SQLite provider for the real app, on Android/iOS only (see Phase 2). |
 | `SQLitePCLRaw.bundle_e_sqlite3` | 3.0.5 | `KeyKeeper.Core.Tests` | Plain (non-cipher) native SQLite provider, test-only — see Phase 2's testing section for why. |
-| `Otp.NET` | 1.4.1 | `KeyKeeper` | TOTP generation for vault items storing 2FA secrets (later phase). |
+| `Otp.NET` | 1.4.1 | `KeyKeeper.Core` | TOTP generation for vault items storing 2FA secrets (`ITotpGenerator`/`TotpGenerator`, Phase 6). Moved from `KeyKeeper` this phase — see "Phase 6: Tools". |
+| `zxcvbn-core` | 7.0.92 | `KeyKeeper.Core` | Offline password-strength estimation (`IPasswordStrengthAnalyzer`/`PasswordStrengthAnalyzer`, Phase 6) — see that section for why zxcvbn over a hand-rolled heuristic. |
 | `CommunityToolkit.Mvvm` | 8.4.2 | `KeyKeeper` | Source-generated MVVM (`ObservableProperty`, `RelayCommand`) for `ViewModels/`. |
 | `Xamarin.AndroidX.Biometric` | 1.1.0.33 | `KeyKeeper` (Android only) | `BiometricPrompt`/`BiometricManager` for the Android `IBiometricAuthService` implementation (Phase 3). Forced the `SupportedOSPlatformVersion` 21.0 → 23.0 change — see "Target frameworks" above. |
 | `Microsoft.Extensions.TimeProvider.Testing` | 10.10.0 | `KeyKeeper.Core.Tests` | `FakeTimeProvider`, for deterministic lockout-expiry/inactivity-timeout tests (Phase 3) without real wall-clock waits. |
@@ -1280,6 +1284,182 @@ form ViewModels' constructors grew new parameters (`IFolderRepository`/`ITagRepo
 needed) — no registration changes needed for those beyond the existing transient registrations,
 since the container resolves constructor parameters automatically.
 
+## Phase 6: Tools (`KeyKeeper.Core/Tools`, `KeyKeeper/ViewModels`, `KeyKeeper/Views`, `KeyKeeper/Services`)
+
+"Araçlar" — four independent, previously-flagged gaps closed in one phase: a real password
+generator (Phase 3/setup only ever enforced a minimum length), a live strength indicator (also
+flagged as out of scope after Phase 5), TOTP code generation (`LoginItem.TotpSecret` had existed
+as a field since Phase 4 with nothing to ever compute a code from it), and clipboard auto-clearing
+(every "Kopyala" button before this phase — none existed yet — would otherwise have left a secret
+sitting on the OS clipboard indefinitely). All four are pure logic in `KeyKeeper.Core/Tools`,
+tested with no MAUI dependency, same pattern Phases 1–3 established for `Crypto`/`Storage`/`Auth`.
+
+### Password generator — `IPasswordGenerator` / `PasswordGenerator`
+
+Built on `RandomNumberGenerator`, never `Random` — consistent with every other secret-generating
+path in this app. Rather than pooling every selected character category and sampling uniformly
+(which can legitimately produce a password missing an entire requested category), `Generate` draws
+one character from each selected category first, fills the remainder from the combined pool, then
+shuffles the whole buffer with a `RandomNumberGenerator`-driven Fisher-Yates — so the guaranteed
+characters aren't always in the leading positions. `PasswordGeneratorOptions` carries length (default
+16) and four `Include*` flags plus `ExcludeAmbiguousCharacters` (strips `0O1lI` from every category,
+for passwords a person has to retype from a screen); `Generate` throws `ArgumentException` if no
+category is selected or `Length` is shorter than the number of selected categories, rather than
+silently defaulting either.
+
+Two call sites, deliberately different in scope: the standalone `PasswordGeneratorPage` /
+`PasswordGeneratorViewModel` exposes every option for generating a password to use *outside* the
+vault, while `LoginFormViewModel.GeneratePasswordCommand` (the "Üret" button next to the password
+field) is a fixed 16-character, every-category call — no page round-trip for the common case of
+just wanting a strong password for the item being edited right now.
+
+### Password strength analysis — `IPasswordStrengthAnalyzer` / `PasswordStrengthAnalyzer`, `zxcvbn-core`
+
+Built on the `zxcvbn-core` package (a .NET port of Dropbox's zxcvbn) rather than a hand-rolled
+heuristic set: zxcvbn already detects exactly the weakness patterns this tool needs — repeated
+characters, sequential keyboard runs ("qwerty", "12345"), dates, dictionary words and l33t
+substitutions — has no dependencies of its own, and runs entirely offline against its own bundled
+dictionaries, consistent with this app's zero-knowledge/offline-first requirement (see
+`IPasswordStrengthAnalyzer`'s doc comment: deliberately no breach-check API, unlike a
+HaveIBeenPwned-style design). zxcvbn's own 0–4 `Score` maps onto this app's own four-value
+`PasswordStrengthLevel` (Zayıf/Orta/Güçlü/Çok Güçlü) — 0→Weak, 1→Medium, 2→Strong, 3 *and* 4→VeryStrong,
+since the top two zxcvbn tiers don't need a separate bucket in this app's simpler UI.
+`PasswordStrengthResult.Entropy` converts zxcvbn's `GuessesLog10` (log10 of the estimated guess
+count) to bits (log2), the more familiar unit for this app's UI, rather than exposing the raw
+guess-count figure. `Analyze(string.Empty)` returns `Weak`/0/0 rather than throwing, since every
+caller here is a live as-you-type binding that starts out empty.
+
+`PasswordStrengthPresentation` (`KeyKeeper/ViewModels`) is the one place the Turkish label, colour,
+and 0–1 progress-bar fraction for each `PasswordStrengthLevel` are defined, shared by
+`LoginFormViewModel`, `WifiFormViewModel`, and `PasswordGeneratorViewModel` rather than duplicated
+per form. Each of those three ViewModels wires strength analysis to its password field via a
+CommunityToolkit.Mvvm-generated `partial void On<Property>Changed` hook (`OnPasswordChanged` on the
+two form ViewModels), so the indicator updates on every keystroke with no explicit event wiring.
+**Not** wired into `SetupViewModel`/`SetupPage` — the master-password field there still only
+enforces `MinimumPasswordLength` (8), unchanged from Phase 3; see "Explicitly out of scope" below.
+
+### TOTP — `ITotpGenerator` / `TotpGenerator`, built on `Otp.NET`
+
+`Otp.NET` moved from `KeyKeeper` to `KeyKeeper.Core` this phase (see the `.csproj` diffs) for the
+same reason `sqlite-net-pcl` and `Konscious.Security.Cryptography.Argon2` already live there: it's
+pure logic with no MAUI dependency, so it and its RFC 6238 test vectors belong beside every other
+pure-logic piece, available to the MAUI head project transitively through the existing
+`ProjectReference`. `TotpGenerator` takes an optional `TimeProvider` (defaults to
+`TimeProvider.System`) — same pattern as `InactivityTimerService` (Phase 3) and
+`ClipboardClearingService` below — so RFC 6238's own published test vectors can be verified against
+fixed instants instead of real-time waits. Fixed at the standard 30-second step / SHA-1 / 6-digit
+configuration: what every mainstream authenticator app and otpauth:// URI assumes when no algorithm
+is specified, and what `LoginItem.TotpSecret` is documented to hold. `GenerateCode` throws
+`ArgumentException` for a null/blank secret or one that isn't valid Base32 (the format issuers
+normally hand out), rather than letting `Otp.NET`'s own exception shape leak through.
+
+`LoginFormViewModel` wires this to a live display: entering/editing `TotpSecret` (via
+`OnTotpSecretChanged`) starts a 1-second `IDispatcherTimer` (`RefreshTotpTimer`/`CreateTotpTimer`,
+same pattern as the clipboard countdown below) that keeps `TotpDisplayCode` and
+`TotpRemainingSeconds` current; an invalid Base32 secret sets `TotpError` instead of throwing into
+the UI, and stops the timer. `LoginFormPage.OnDisappearing` calls `StopTotpTimer()` so the timer
+doesn't keep running (and keep the ViewModel alive) after navigating away — the same "stop the
+timer on disappear" discipline the clipboard countdown below also requires.
+
+### Clipboard auto-clear — `IClipboard`/`MauiClipboard`, `IClipboardClearingService`/`ClipboardClearingService`
+
+`IClipboard` (`KeyKeeper.Core/Tools`) is a minimal seam over the platform clipboard, the same
+testability reasoning as `ISecureKeyValueStore` (Phase 2): `ClipboardClearingService` depends only
+on the interface, so it's unit-tested against a `FakeClipboard`, with `MauiClipboard`
+(`KeyKeeper/Services`, wrapping `Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard`, aliased
+as `CoreIClipboard` in `MauiProgram.cs` to avoid colliding with MAUI's own same-named interface)
+the real implementation.
+
+`CopyAsync(value, delay)` sets the clipboard immediately, then schedules a clear via
+`TimeProvider.CreateTimer` (fake-clock-testable, same pattern as `TotpGenerator`/
+`InactivityTimerService`). The clear itself **re-reads the clipboard first and only clears it if it
+still holds exactly the value this call copied there** — without that check, the timer firing after
+the user copied a password, then immediately copied something unrelated to paste elsewhere, would
+wipe out *that* unrelated value instead of leaving it alone. Calling `CopyAsync` again before an
+earlier delay elapses cancels the earlier pending clear and replaces it with a new one for the new
+value (`ClipboardClearingServiceTests` covers this explicitly).
+
+Every form's clipboard-copy button routes through one shared implementation,
+`VaultItemFormViewModelBase.CopyToClipboardAsync` (bound with the field itself as
+`CommandParameter` — `Password` on `LoginFormPage`/`WifiFormPage`, `CardNumber`/`Cvv` on
+`CardFormPage`, `LicenseKey` on `LicenseFormPage`), fixed at a 30-second clear delay
+(`ClipboardClearDelay`, picked from the middle of the phase's 30–45s guidance). Each page's
+`OnDisappearing` calls the ViewModel's `StopClipboardCountdown()` so the 1-second UI countdown timer
+(`ClipboardStatus`, e.g. "Panoya kopyalandı, 29 saniye sonra temizlenecek.") doesn't keep ticking
+after navigating away. `PasswordGeneratorViewModel` has its own near-identical
+`CopyAsync`/`StartClipboardCountdown`/`UpdateClipboardStatus` implementation rather than sharing
+`VaultItemFormViewModelBase`'s (it isn't an item form, so it doesn't derive from that base) — a
+known, small duplication, not extracted into a shared helper this phase.
+
+### UI additions
+
+`PasswordGeneratorPage` (routed as `"password-generator"`, reached via `VaultListPage`'s new "Şifre
+Üret" toolbar item): length slider (8–64), the four category switches, the ambiguous-character
+toggle, a "Şifre Üret" button, and — once a password exists — its strength bar/label and a
+"Kopyala" button with the same clearing countdown as every item form. `LoginFormPage` and
+`WifiFormPage` gained a strength bar/label under their password field; `LoginFormPage` additionally
+gained the "Üret"/"Kopyala" buttons and, when `TotpSecret` is set, a live code + countdown card and
+an error label for invalid Base32. `CardFormPage` and `LicenseFormPage` gained "Kopyala" next to
+`CardNumber`/`Cvv` and `LicenseKey` respectively (no strength meter — those aren't passwords).
+
+### Manual verification — Android emulator
+
+Screenshots checked into `docs/phase6-verification/` (`p6_00` through `p6_26`), covering: first-run
+setup and vault creation; opening the standalone generator, generating a password, and watching its
+strength bar read "Çok Güçlü" (`p6_06`); copying it and seeing the live "Panoya kopyalandı, 29 saniye
+sonra temizlenecek." countdown (`p6_07`); creating a login item, using the in-form "Üret" button, and
+entering a TOTP secret; the live TOTP code changing between two later screenshots on the same item
+(`909382` at "14sn" in `p6_17`, `357711` at "22sn" in `p6_18` — different codes, different countdowns,
+confirming the 1-second refresh timer is actually recomputing the code, not showing a static value);
+reopening the saved login and seeing the TOTP card still live; and the clipboard-clear round trip
+(`p6_21`–`p6_26`): copying the generated password, pasting it elsewhere to confirm it matches
+(`p6_22`), waiting past the 30-second delay, then pasting again (`p6_24`) — the pasted value was a
+*different* string than what had been copied, i.e. the clipboard no longer held the original secret,
+consistent with the auto-clear having actually fired rather than merely being reasoned about.
+
+### Tests (`KeyKeeper.Core.Tests/Tools`)
+
+195 tests in the suite as of Phase 6 (up from 161 at the end of Phase 5), all passing:
+- **`PasswordGeneratorTests`**: requested length is honored across several sizes; two calls never
+  produce the same password; selecting only one category produces only that category's characters;
+  selecting all four guarantees at least one character from each (on a long-enough password, so the
+  guarantee — not luck — is what's being tested); `ExcludeAmbiguousCharacters` never lets `0O1lI`
+  through, checked across 50 runs; no category selected, or a length shorter than the selected
+  category count, both throw `ArgumentException`.
+- **`PasswordStrengthAnalyzerTests`**: an empty password is `Weak`/0/0; known-weak passwords
+  ("password", "123456", "qwerty", "aaaaaaaa") classify `Weak`; known-strong passwords classify
+  `Strong` or `VeryStrong`; a stronger password's entropy is strictly greater than a weaker one's.
+- **`TotpGeneratorTests`**: all five of RFC 6238 Appendix B's official test vectors (truncated to
+  6 digits — an 8-digit RFC code's last 6 digits are always identical to the 6-digit code, since
+  `(x mod 10^8) mod 10^6 == x mod 10^6`), with the Base32 secret itself derived from the RFC's raw
+  ASCII bytes at test time rather than hand-transcribed; `PeriodSeconds` is always 30; remaining
+  time within a step is computed correctly; the same secret at two different instants produces
+  different codes; null/empty/whitespace and invalid-Base32 secrets both throw `ArgumentException`.
+- **`ClipboardClearingServiceTests`** (against `FakeClipboard` + `FakeTimeProvider`): `CopyAsync`
+  sets the clipboard immediately; the clipboard is cleared once the delay elapses; it is untouched
+  before the delay elapses; if the user copies something else in the meantime, that value survives
+  the scheduled clear untouched (the security-relevant case); calling `CopyAsync` again before the
+  first delay elapses cancels the first pending clear so only the second one ever fires.
+
+No test exists for the `IDispatcherTimer`-driven UI wiring (TOTP live countdown, clipboard countdown
+labels) or `PasswordStrengthPresentation`'s label/colour/fraction mapping, for the same structural
+reason Phase 3's biometric prompt and Phase 5's `PageActivityBehavior` have none — see "Why neither
+side has (or can have) an xUnit test" under Phase 3. The manual verification pass above is this
+UI-layer code's actual coverage.
+
+### Dependency injection (`MauiProgram.cs`)
+
+Added this phase, all singletons (stateless, or — for the clipboard clearer — needing exactly one
+shared pending-clear timer app-wide, same reasoning as the repositories): `IPasswordGenerator` →
+`PasswordGenerator`, `IPasswordStrengthAnalyzer` → `PasswordStrengthAnalyzer`, `ITotpGenerator` →
+`TotpGenerator`, `CoreIClipboard` → `MauiClipboard`, `IClipboardClearingService` →
+`ClipboardClearingService`. `PasswordGeneratorViewModel`/`PasswordGeneratorPage` registered
+transient, same as every other page. Every item-form ViewModel's constructor grew an
+`IClipboardClearingService` parameter (via the shared base class); `LoginFormViewModel` and
+`WifiFormViewModel` additionally take `IPasswordStrengthAnalyzer`, and `LoginFormViewModel` also
+takes `IPasswordGenerator` and `ITotpGenerator` — no registration changes needed beyond the five new
+singletons above, since the container resolves constructor parameters automatically.
+
 ## Explicitly out of scope so far
 - No dedicated tag-management screen (Phase 5) — tags are created inline from an item form's "Yeni
   etiket" field; renaming/deleting a tag entity or `ITagRepository.DeleteUnused` cleanup have no UI
@@ -1290,7 +1470,17 @@ since the container resolves constructor parameters automatically.
   hardware — no Mac/Xcode available in this environment (the Android side *was* verified for
   real, on-emulator — see "Manual verification — Phase 3 UI on the Android emulator" under
   Phase 3).
-- No password-strength meter on `SetupPage` (only a minimum-length floor) — flagged as its own
-  later "Araçlar" phase, not attempted here.
+- No password-strength meter on `SetupPage` (only a minimum-length floor) — `IPasswordStrengthAnalyzer`
+  now exists (Phase 6) and is wired into every item-form password field and the standalone
+  generator, but not into the master-password field on first-run setup.
 - No instant lock-on-background (`App.OnSleep`) — only the inactivity timer and explicit "Kilitle"
   currently lock the vault; backgrounding the app doesn't.
+- No QR-code scanning for TOTP secret entry (Phase 6) — `LoginFormPage`'s TOTP field is manual
+  Base32 text entry only; a user has to copy/retype the secret an issuer shows as a QR code.
+- No breach-check (HaveIBeenPwned-style) API for password strength (Phase 6, deliberate) —
+  `PasswordStrengthAnalyzer` is zxcvbn-only, consistent with this app's offline-first, no-network
+  design; see its own doc comment.
+- `PasswordGeneratorViewModel`'s clipboard-copy/countdown code duplicates
+  `VaultItemFormViewModelBase`'s near-identical implementation (Phase 6) rather than sharing it,
+  since the generator page isn't an item form and doesn't derive from that base — not extracted
+  into a common helper yet.

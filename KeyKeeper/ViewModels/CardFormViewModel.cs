@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Core.Tools;
 
 namespace KeyKeeper.ViewModels;
 
@@ -12,7 +13,8 @@ public sealed partial class CardFormViewModel : VaultItemFormViewModelBase<CardI
     /// <see cref="CardTypeIndex"/> casts directly between them instead of doing a lookup.</summary>
     public static readonly string[] CardTypeOptions = ["Visa", "Mastercard", "American Express", "Discover", "Diğer"];
 
-    public CardFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
+    public CardFormViewModel(IVaultItemRepository repository, IFolderRepository folders, IClipboardClearingService clipboardClearingService)
+        : base(repository, folders, clipboardClearingService)
     {
     }
 

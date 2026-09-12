@@ -2,12 +2,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Core.Tools;
 
 namespace KeyKeeper.ViewModels;
 
 public sealed partial class LicenseFormViewModel : VaultItemFormViewModelBase<LicenseItem>
 {
-    public LicenseFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
+    public LicenseFormViewModel(IVaultItemRepository repository, IFolderRepository folders, IClipboardClearingService clipboardClearingService)
+        : base(repository, folders, clipboardClearingService)
     {
     }
 

@@ -12,10 +12,15 @@
             <Entry Placeholder="Başlık" Text="{Binding Title}" />
             <Entry Placeholder="Ağ adı (SSID)" Text="{Binding Ssid}" />
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <Entry Grid.Column="0" Placeholder="Şifre" Text="{Binding Password}" IsPassword="{Binding IsPasswordMasked}" />
                 <Button Grid.Column="1" Text="Göster" Command="{Binding TogglePasswordVisibilityCommand}" />
+                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Password}" />
             </Grid>
+
+            <ProgressBar Progress="{Binding PasswordStrengthFraction}" ProgressColor="{Binding PasswordStrengthColor}" IsVisible="{Binding HasPasswordStrength}" />
+            <Label Text="{Binding PasswordStrengthLabel}" TextColor="{Binding PasswordStrengthColor}" FontAttributes="Bold" IsVisible="{Binding HasPasswordStrength}" />
+            <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource SubHeadline}" />
 
             <Picker
                 Title="Güvenlik protokolü"

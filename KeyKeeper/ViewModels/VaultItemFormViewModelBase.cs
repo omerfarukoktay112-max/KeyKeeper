@@ -4,7 +4,9 @@ using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Core.Tools;
 using KeyKeeper.Services;
+using Microsoft.Maui.Dispatching;
 
 namespace KeyKeeper.ViewModels;
 
@@ -41,14 +43,24 @@ public sealed record FolderPickerOption(string? Id, string DisplayName);
 public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableObject
     where TPayload : IVaultItemPayload
 {
+    /// <summary>How long a value copied via <see cref="CopyToClipboardAsync"/> stays on the
+    /// clipboard before <see cref="IClipboardClearingService"/> wipes it -- picked from the
+    /// middle of the 30-45s range the "Araçlar" phase calls for.</summary>
+    private static readonly TimeSpan ClipboardClearDelay = TimeSpan.FromSeconds(30);
+
     protected readonly IVaultItemRepository Repository;
     private readonly IFolderRepository _folders;
+    private readonly IClipboardClearingService _clipboardClearingService;
     private HashSet<string> _originalTags = [];
 
-    protected VaultItemFormViewModelBase(IVaultItemRepository repository, IFolderRepository folders)
+    private IDispatcherTimer? _clipboardCountdownTimer;
+    private DateTimeOffset _clipboardClearAtUtc;
+
+    protected VaultItemFormViewModelBase(IVaultItemRepository repository, IFolderRepository folders, IClipboardClearingService clipboardClearingService)
     {
         Repository = repository;
         _folders = folders;
+        _clipboardClearingService = clipboardClearingService;
     }
 
     /// <summary>Set by the page from Shell navigation query parameters before <see cref="Initialize"/>
@@ -81,6 +93,74 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
     private string? newTagText;
 
     public bool CanAddTag => !string.IsNullOrWhiteSpace(NewTagText) && !Tags.Contains(NewTagText, StringComparer.Ordinal);
+
+    /// <summary>Feedback shown next to a form's "Kopyala" buttons, e.g. "Panoya kopyalandı, 30
+    /// saniye sonra temizlenecek." — null when nothing was copied recently.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasClipboardStatus))]
+    private string? clipboardStatus;
+
+    public bool HasClipboardStatus => !string.IsNullOrEmpty(ClipboardStatus);
+
+    /// <summary>Copies a sensitive field's current value to the clipboard, scheduling it to
+    /// auto-clear via <see cref="IClipboardClearingService"/> — bind a form's "Kopyala" buttons
+    /// to this with the field (e.g. <c>Password</c>) as <c>CommandParameter</c>.</summary>
+    [RelayCommand]
+    private async Task CopyToClipboardAsync(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        await _clipboardClearingService.CopyAsync(value, ClipboardClearDelay);
+        StartClipboardCountdown();
+    }
+
+    private void StartClipboardCountdown()
+    {
+        _clipboardClearAtUtc = DateTimeOffset.UtcNow + ClipboardClearDelay;
+        UpdateClipboardStatus();
+
+        _clipboardCountdownTimer ??= CreateClipboardCountdownTimer();
+        _clipboardCountdownTimer.Start();
+    }
+
+    private IDispatcherTimer CreateClipboardCountdownTimer()
+    {
+        IDispatcherTimer timer = Application.Current!.Dispatcher.CreateTimer();
+        timer.Interval = TimeSpan.FromSeconds(1);
+        timer.IsRepeating = true;
+        timer.Tick += (_, _) => OnClipboardCountdownTick();
+        return timer;
+    }
+
+    private void OnClipboardCountdownTick()
+    {
+        if (DateTimeOffset.UtcNow >= _clipboardClearAtUtc)
+        {
+            _clipboardCountdownTimer?.Stop();
+            ClipboardStatus = null;
+            return;
+        }
+
+        UpdateClipboardStatus();
+    }
+
+    private void UpdateClipboardStatus()
+    {
+        TimeSpan remaining = _clipboardClearAtUtc - DateTimeOffset.UtcNow;
+        if (remaining < TimeSpan.Zero)
+        {
+            remaining = TimeSpan.Zero;
+        }
+
+        ClipboardStatus = $"Panoya kopyalandı, {(int)Math.Ceiling(remaining.TotalSeconds)} saniye sonra temizlenecek.";
+    }
+
+    /// <summary>Call from the page's <c>OnDisappearing</c> so the 1-second countdown timer
+    /// doesn't keep ticking after the user has navigated away.</summary>
+    public void StopClipboardCountdown() => _clipboardCountdownTimer?.Stop();
 
     /// <summary>Raised after a successful create/update so the page can navigate back.</summary>
     public event Action? Saved;

@@ -14,6 +14,19 @@
          SQLitePCL.raw.SetProvider(...); see MauiProgram.cs (production, e_sqlcipher) and
          KeyKeeper.Core.Tests (test-only, plain e_sqlite3). -->
     <PackageReference Include="sqlite-net-pcl" Version="1.11.285" />
+    <!-- Moved here from KeyKeeper (Phase 6) so TotpGenerator and its RFC 6238 test vectors can
+         live in KeyKeeper.Core/KeyKeeper.Core.Tests like every other pure-logic piece: the MAUI
+         head project gets it transitively via its ProjectReference, same as the two packages
+         above. -->
+    <PackageReference Include="Otp.NET" Version="1.4.1" />
+    <!-- .NET port of Dropbox's zxcvbn password-strength estimator (Phase 6): evaluated against
+         writing pattern-detection heuristics (repeats, keyboard sequences, dates) from scratch;
+         chosen instead because it already implements exactly those checks (plus dictionary/l33t
+         substitution a hand-rolled heuristic wouldn't attempt), has zero dependencies of its own,
+         and runs entirely offline (bundled word lists, no network calls): consistent with this
+         app's zero-knowledge, offline-first requirement. See PasswordStrengthAnalyzer's doc
+         comment for how its 0-4 score maps onto this app's own PasswordStrengthLevel. -->
+    <PackageReference Include="zxcvbn-core" Version="7.0.92" />
   </ItemGroup>
 
 </Project>

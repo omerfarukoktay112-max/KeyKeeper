@@ -29,6 +29,12 @@ public partial class WifiFormPage : ContentPage, IQueryAttributable
         }
     }
 
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _viewModel.StopClipboardCountdown();
+    }
+
     private async void OnDeleteClicked(object? sender, EventArgs e)
     {
         bool confirmed = await this.DisplayAlertAsync("Silinsin mi?", "Bu öğe kalıcı olarak silinecek.", "Sil", "Vazgeç");

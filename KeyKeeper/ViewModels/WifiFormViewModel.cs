@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Core.Tools;
+using Microsoft.Maui.Graphics;
 
 namespace KeyKeeper.ViewModels;
 
@@ -12,8 +14,12 @@ public sealed partial class WifiFormViewModel : VaultItemFormViewModelBase<WifiI
     /// underlying value N, since <see cref="SecurityProtocolIndex"/> casts directly between them.</summary>
     public static readonly string[] SecurityProtocolOptions = ["Açık (şifresiz)", "WEP", "WPA2", "WPA3"];
 
-    public WifiFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
+    private readonly IPasswordStrengthAnalyzer _strengthAnalyzer;
+
+    public WifiFormViewModel(IVaultItemRepository repository, IFolderRepository folders, IClipboardClearingService clipboardClearingService, IPasswordStrengthAnalyzer strengthAnalyzer)
+        : base(repository, folders, clipboardClearingService)
     {
+        _strengthAnalyzer = strengthAnalyzer;
     }
 
     [ObservableProperty]
@@ -36,6 +42,23 @@ public sealed partial class WifiFormViewModel : VaultItemFormViewModelBase<WifiI
     private bool isPasswordVisible;
 
     public bool IsPasswordMasked => !IsPasswordVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPasswordStrength))]
+    [NotifyPropertyChangedFor(nameof(PasswordStrengthLabel))]
+    [NotifyPropertyChangedFor(nameof(PasswordStrengthColor))]
+    [NotifyPropertyChangedFor(nameof(PasswordStrengthFraction))]
+    private PasswordStrengthResult? passwordStrength;
+
+    public bool HasPasswordStrength => PasswordStrength is not null;
+
+    public string PasswordStrengthLabel => PasswordStrength is { } s ? PasswordStrengthPresentation.Label(s.Level) : string.Empty;
+
+    public Color PasswordStrengthColor => PasswordStrength is { } s ? PasswordStrengthPresentation.Color(s.Level) : Colors.Transparent;
+
+    public double PasswordStrengthFraction => PasswordStrength is { } s ? PasswordStrengthPresentation.Fraction(s.Level) : 0;
+
+    partial void OnPasswordChanged(string? value) => PasswordStrength = string.IsNullOrEmpty(value) ? null : _strengthAnalyzer.Analyze(value);
 
     [RelayCommand]
     private void TogglePasswordVisibility() => IsPasswordVisible = !IsPasswordVisible;
