@@ -1,0 +1,30 @@
+Evidence for Phase 7 backup-exclusion verification -- aapt dump xmltree against the actual built
+APK (KeyKeeper/bin/Debug/net10.0-android/com.companyname.keykeeper-Signed.apk), not just the
+source AndroidManifest.xml, so this reflects the real merged/compiled manifest.
+
+Command: aapt dump xmltree <apk> AndroidManifest.xml | grep -A1 -B1 -iE "backup|extraction"
+
+    A: android:debuggable(0x0101000f)=(type 0x12)0xffffffff
+    A: android:allowBackup(0x01010280)=(type 0x12)0x0
+    A: android:supportsRtl(0x010103af)=(type 0x12)0xffffffff
+    --
+    A: android:appComponentFactory(0x0101057a)="androidx.core.app.CoreComponentFactory"
+    A: android:dataExtractionRules(0x0101063e)=@0x7f130000
+    E: activity (line=25)
+
+allowBackup=0x0 (false) confirmed in the compiled manifest, and dataExtractionRules resolves to a
+real resource (0x7f130000).
+
+Command: aapt dump xmltree <apk> res/xml/data_extraction_rules.xml
+
+    E: data-extraction-rules (line=6)
+      E: cloud-backup (line=6)
+        E: exclude (line=6)
+          A: domain="root" (Raw: "root")
+      E: device-transfer (line=6)
+        E: exclude (line=6)
+          A: domain="root" (Raw: "root")
+
+Confirms the packaged resource (the @0x7f130000 reference above) excludes all app data ("root"
+domain) from both cloud-backup and device-transfer, exactly as authored in
+Platforms/Android/Resources/xml/data_extraction_rules.xml.

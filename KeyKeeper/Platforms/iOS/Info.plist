@@ -6,6 +6,13 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Kasanızın kilidini açmak için Face ID kullanılır.</string>
+	<!-- Phase 7: lets DeviceSecurityChecker's CanOpenUrl("cydia://...") jailbreak check actually
+	     work. Without declaring the scheme here, iOS 9+ makes CanOpenUrl always return false
+	     regardless of whether Cydia is installed, silently turning that check into a no-op. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>cydia</string>
+	</array>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>

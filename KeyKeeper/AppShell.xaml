@@ -8,7 +8,7 @@
     Title="KeyKeeper">
 
     <!--
-    Three top-level destinations, each its own implicit ShellItem/ShellSection/ShellContent
+    Four top-level destinations, each its own implicit ShellItem/ShellSection/ShellContent
     (skipping explicit ShellItem/ShellSection tags is fine — Shell auto-wraps a bare ShellContent
     in one of each). That's deliberate, not just the terse option: an absolute GoToAsync("//x")
     call requires its target to be reachable as a full page stack on its own, which only a real
@@ -17,14 +17,28 @@
     not navigated to absolutely as the entire stack. (Learned the hard way: the initial version
     of this file declared only "lock" here and registered "setup"/"vault" as RegisterRoute-only
     global routes, which crashed on startup with "Global routes currently cannot be the only page
-    on the stack" the moment App.xaml.cs tried GoToAsync("//setup").)
+    on the stack" the moment App.xaml.cs tried GoToAsync("//setup").) "security-warning" (Phase 7)
+    followed this same rule from the start rather than repeating that mistake — see
+    IDeviceSecurityWarningService: App.xaml.cs can navigate to it absolutely, before any other page
+    exists yet, right after the vault-security check runs at launch.
 
-    FlyoutBehavior="Disabled" hides the flyout hamburger that three top-level ShellItems would
+    FlyoutBehavior="Disabled" hides the flyout hamburger that four top-level ShellItems would
     otherwise imply; no tab bar appears either, since tabs are a ShellSection-level construct
-    (multiple ShellContent under one ShellSection), not something three separate ShellItems
-    trigger. App.xaml.cs decides which of the three is actually shown, immediately on startup —
-    see its CreateWindow override — so "setup" being first here (Shell's own default) is
-    inconsequential.
+    (multiple ShellContent under one ShellSection), not something four separate ShellItems
+    trigger. App.xaml.cs decides which of the four is actually shown, immediately on startup —
+    see its CreateWindow override.
+
+    "setup" being declared FIRST matters here, unlike the other three: Shell instantiates its
+    first-declared ShellContent as its own implicit default the moment AppShell() runs, firing
+    that page's OnAppearing before App.xaml.cs's CreateWindow/NavigateToInitialRouteAsync has run
+    at all. Declaring "security-warning" first (tried during this phase's own manual verification)
+    made *it* that implicit default instead: SecurityWarningPage.OnAppearing called
+    SecurityWarningViewModel.Initialize() while IDeviceSecurityWarningService.PendingWarning was
+    still null (EvaluateDeviceSecurity hadn't run yet), leaving Message permanently blank, since
+    App.xaml.cs's later GoToAsync("//security-warning") is a same-route no-op once Shell already
+    considers itself there, so OnAppearing never re-fires to pick up the real PendingWarning. Kept
+    "setup" first as it always was; "security-warning" only needs to be *reachable* as a real
+    ShellContent (per the routing lesson above), not the default one.
     -->
     <ShellContent
         Route="setup"
@@ -37,6 +51,10 @@
     <ShellContent
         Route="vault"
         ContentTemplate="{DataTemplate views:VaultListPage}" />
+
+    <ShellContent
+        Route="security-warning"
+        ContentTemplate="{DataTemplate views:SecurityWarningPage}" />
 
     <!--
     The five item-type form pages (Phase 4) are deliberately NOT declared as ShellContent here —

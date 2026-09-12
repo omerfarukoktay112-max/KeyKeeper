@@ -1,15 +1,18 @@
 using KeyKeeper.Core.Auth;
+using KeyKeeper.Core.Security;
 
 namespace KeyKeeper
 {
     public partial class App : Application
     {
         private readonly IAuthenticationService _auth;
+        private readonly IDeviceSecurityWarningService _securityWarning;
 
-        public App(IAuthenticationService auth)
+        public App(IAuthenticationService auth, IDeviceSecurityWarningService securityWarning)
         {
             InitializeComponent();
             _auth = auth;
+            _securityWarning = securityWarning;
 
             // The single place deciding "go to the lock screen" for every path that can lock
             // the vault -- the explicit "Kilitle" button on VaultListPage and the
@@ -36,11 +39,14 @@ namespace KeyKeeper
 
         private async Task NavigateToInitialRouteAsync()
         {
-            string route = !_auth.IsVaultInitialized
-                ? "//setup"
-                : _auth.IsUnlocked
-                    ? "//vault"
-                    : "//lock";
+            // Phase 7: a device-security signal (root/jailbreak, debugger) takes priority over
+            // setup/lock/vault -- the user sees the warning first and decides whether to proceed;
+            // SecurityWarningPage computes the same underlying route via AppRouting once
+            // acknowledged.
+            _securityWarning.EvaluateDeviceSecurity();
+            string route = _securityWarning.HasPendingWarning
+                ? "//security-warning"
+                : AppRouting.DetermineInitialRoute(_auth);
 
             if (Shell.Current is not null)
             {

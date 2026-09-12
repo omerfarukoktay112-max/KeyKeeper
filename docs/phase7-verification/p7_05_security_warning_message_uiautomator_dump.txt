@@ -1,0 +1,37 @@
+Evidence for the SecurityWarningPage manual check. adb screencap could not be used here: FLAG_SECURE
+(this same phase's own Android protection) blocks screenshots on every page unconditionally, this
+one included -- p7_03 in this folder is the screencap attempt against this exact screen, and it
+comes back solid black, the same as every other page. uiautomator's accessibility-tree dump is
+therefore the real evidence for this step, the same reasoning Phase 3's biometric-enrollment
+screens already established in docs/phase3-verification.
+
+Setup: DeviceSecurityChecker.CheckDeviceSecurity() (Android) was temporarily edited to add one
+unconditional forced signal ("manual-phase7-forced-test-signal") so RequiresWarning would be true
+on this non-rooted emulator, purely to see the page render for real -- reverted immediately after
+this check, before anything was committed. This is not a claim of a genuine positive root/jailbreak
+detection; see ARCHITECTURE.md's Phase 7 section for why that cannot be verified on this emulator
+at all.
+
+adb shell uiautomator dump, relevant TextView nodes:
+
+    text="Güvenlik Uyarısı"          (page title)
+    text="⚠️"
+    text="Güvenlik Uyarısı"          (headline label)
+    text="Bu cihazda cihazınızın root/jailbreak yapılmış olabileceğine dair belirtiler tespit
+          edildi. Bu durum, kasanızın dayandığı işletim sistemi güvenlik korumalarını (ör.
+          donanım destekli anahtar depolama) zayıflatmış olabilir. Devam etmek size kalmıştır."
+    text="Yine de Devam Et"          (continue button)
+
+This also caught a real routing bug during this same manual pass: the first attempt declared
+"security-warning" as AppShell's FIRST ShellContent, making it Shell's own implicit default page --
+it was constructed (and SecurityWarningViewModel.Initialize() ran) before
+IDeviceSecurityWarningService.EvaluateDeviceSecurity() had been called at all, so the message
+rendered as an empty string; App.xaml.cs's later GoToAsync("//security-warning") turned out to be a
+same-route no-op once Shell already considered itself there, so OnAppearing never re-fired to pick
+up the real PendingWarning. Fixed by moving "security-warning" out of the first position in
+AppShell.xaml (kept "setup" first, as it always was) -- see AppShell.xaml's own comment. The dump
+above is from the corrected build.
+
+Tapping "Yine de Devam Et" was also confirmed to correctly navigate on to the lock screen ("Kasa
+Kilitli") afterward -- the underlying setup/lock/vault route AppRouting.DetermineInitialRoute would
+have picked at launch.

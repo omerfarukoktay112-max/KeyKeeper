@@ -1,6 +1,7 @@
 ﻿using KeyKeeper.Core.Auth;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
+using KeyKeeper.Core.Security;
 using KeyKeeper.Core.Storage;
 using KeyKeeper.Core.Tools;
 using KeyKeeper.Services;
@@ -8,6 +9,9 @@ using CoreIClipboard = KeyKeeper.Core.Tools.IClipboard;
 using KeyKeeper.ViewModels;
 using KeyKeeper.Views;
 using Microsoft.Extensions.Logging;
+#if IOS
+using Microsoft.Maui.LifecycleEvents;
+#endif
 using SQLitePCL;
 
 namespace KeyKeeper
@@ -49,6 +53,26 @@ namespace KeyKeeper
     		builder.Logging.AddDebug();
 #endif
 
+#if IOS
+            // Phase 7: SecureOverlayService covers the whole app -- no FLAG_SECURE equivalent
+            // exists on iOS, so a blur/logo overlay is shown instead whenever screen recording is
+            // detected or the app is about to resign active (about to background, or a system UI
+            // like Control Center is about to cover it) -- see SecureOverlayService's own doc
+            // comment for why both triggers are needed and why OnResignActivation/OnActivated
+            // (not DidEnterBackground/WillEnterForeground) are the right pair to hook.
+            builder.ConfigureLifecycleEvents(events =>
+            {
+                events.AddiOS(ios => ios
+                    .FinishedLaunching((_, _) =>
+                    {
+                        SecureOverlayService.Start();
+                        return true;
+                    })
+                    .OnResignActivation(_ => SecureOverlayService.SetResignedActive(true))
+                    .OnActivated(_ => SecureOverlayService.SetResignedActive(false)));
+            });
+#endif
+
             builder.Services.AddSingleton<IVaultStoragePathProvider, MauiVaultStoragePathProvider>();
             builder.Services.AddSingleton<IVaultMigrationService, VaultMigrationService>();
             builder.Services.AddSingleton<IVaultDatabaseService, VaultDatabaseService>();
@@ -81,10 +105,20 @@ namespace KeyKeeper
             builder.Services.AddSingleton<IBiometricAuthService, BiometricAuthService>();
             builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
 
+            // Güvenlik Zırhı (Phase 7): DeviceSecurityChecker follows the exact same
+            // one-class-per-platform-folder pattern as BiometricAuthService above.
+            // DeviceSecurityWarningService is a singleton so the one evaluation done at launch
+            // (App.xaml.cs) and the acknowledgement made on SecurityWarningPage act on the same
+            // in-memory state.
+            builder.Services.AddSingleton<IDeviceSecurityChecker, DeviceSecurityChecker>();
+            builder.Services.AddSingleton<IDeviceSecurityWarningService, DeviceSecurityWarningService>();
+
             // Pages/ViewModels: transient, not singleton -- each navigation should get a fresh
             // ViewModel (e.g. LockPage's Password field shouldn't survive to the next time the
             // user lands back on it after a lock). Pages take their ViewModel via constructor
             // injection and set it as BindingContext themselves (see each page's code-behind).
+            builder.Services.AddTransient<SecurityWarningViewModel>();
+            builder.Services.AddTransient<SecurityWarningPage>();
             builder.Services.AddTransient<SetupViewModel>();
             builder.Services.AddTransient<SetupPage>();
             builder.Services.AddTransient<LockViewModel>();

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (API 31+) cloud-backup/device-transfer rules. Technically redundant on its own:
+     android:allowBackup="false" in AndroidManifest.xml already disables Auto Backup and, on
+     Android 12+, cloud backup/device-to-device transfer regardless of this file's contents (see
+     the comment there). This is added anyway as explicit defense-in-depth: it documents intent
+     directly and keeps the app's backup posture correct even if allowBackup were ever accidentally
+     flipped in a future change. See ARCHITECTURE.md's Phase 7 section. -->
+<data-extraction-rules>
+	<cloud-backup>
+		<exclude domain="root" />
+	</cloud-backup>
+	<device-transfer>
+		<exclude domain="root" />
+	</device-transfer>
+</data-extraction-rules>

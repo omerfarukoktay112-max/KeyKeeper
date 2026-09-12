@@ -10,23 +10,25 @@ KeyKeeper.slnx
 │   ├── Behaviors/            # PageActivityBehavior — app-wide inactivity-timer activity reporting (post-Phase-4 fix — done)
 │   ├── Data/                # (empty — Data/ is now KeyKeeper.Core/Data, see below)
 │   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore, FolderTreeFlattener (Phase 5), MauiClipboard (Phase 6 — done)
-│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel, PasswordGeneratorViewModel + 5 item form ViewModels (Phase 3/4/5/6 UI — done)
-│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage, PasswordGeneratorPage + 5 item form pages (Phase 3/4/5/6 UI — done)
+│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel, PasswordGeneratorViewModel, SecurityWarningViewModel (Phase 7) + 5 item form ViewModels
+│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage, PasswordGeneratorPage, SecurityWarningPage (Phase 7) + 5 item form pages
 │   ├── Resources/            # Standard MAUI resource structure (AppIcon, Fonts, Images, Raw, Splash, Styles)
-│   └── Platforms/            # Platform-specific entry points (Android/, iOS/) — includes BiometricAuthService.cs per platform
+│   └── Platforms/            # Platform-specific entry points (Android/, iOS/) — BiometricAuthService.cs and DeviceSecurityChecker.cs (Phase 7) per platform; Android also gets Resources/xml/data_extraction_rules.xml, iOS also gets SecureOverlayService.cs (Phase 7 — done)
 ├── KeyKeeper.Core/          # Plain net10.0 class library — pure logic, no MAUI/UI/platform references
 │   ├── Auth/                  # Unlock/lock orchestration, lockout policy, inactivity timer (Phase 3 — done)
 │   ├── Crypto/               # Key derivation, encryption, master-password verification (Phase 1 — done)
 │   ├── Data/                 # Vault schema, SQLCipher connection service, migrations, unlock-metadata store, item/folder/tag repositories, search-text builder (Phase 2/4/5 — done)
 │   ├── Storage/               # Wrapped-key storage abstraction for biometric unlock (Phase 2 — done)
 │   ├── Models/               # Vault item domain models: LoginItem, CardItem, WifiItem, SecureNoteItem, LicenseItem (Phase 4 — done)
-│   └── Tools/                 # Password generator, strength analyzer, TOTP generator, clipboard auto-clear (Phase 6 — done)
+│   ├── Tools/                 # Password generator, strength analyzer, TOTP generator, clipboard auto-clear (Phase 6 — done)
+│   └── Security/              # Device-security check + warning orchestration (Phase 7 — done)
 └── KeyKeeper.Core.Tests/    # xUnit tests for KeyKeeper.Core (net10.0)
     ├── Auth/
     ├── Crypto/
     ├── Data/
     ├── Storage/
-    └── Tools/
+    ├── Tools/
+    └── Security/
 ```
 
 Note: `KeyKeeper/Data/` (inside the MAUI head project) is intentionally empty — see "Why the storage
@@ -71,7 +73,7 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
   `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of
-  Phase 5, 195 as of Phase 6).
+  Phase 5, 195 as of Phase 6, 202 as of Phase 7).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -1460,6 +1462,237 @@ transient, same as every other page. Every item-form ViewModel's constructor gre
 takes `IPasswordGenerator` and `ITotpGenerator` — no registration changes needed beyond the five new
 singletons above, since the container resolves constructor parameters automatically.
 
+## Phase 7: Security hardening (Güvenlik Zırhı) (`KeyKeeper.Core/Security`, `KeyKeeper/Platforms`, `KeyKeeper/AppShell.xaml`, `KeyKeeper/Views`, `KeyKeeper/ViewModels`)
+
+Four previously-untouched hardening gaps, closed together: screen-capture/app-switcher exposure,
+root/jailbreak + debugger detection with a warning screen, a re-verification (plus one new
+defense-in-depth entry) of backup exclusion, and the manual-verification/ARCHITECTURE.md write-up
+this section itself is. Explicitly not touched: anything belonging to a future export/import
+(.vault/CSV) phase.
+
+### Screen-capture and app-switcher protection
+
+**Android — `FLAG_SECURE`, always on for the whole app session.** Set once,
+`Window?.AddFlags(WindowManagerFlags.Secure)` in `MainActivity.OnCreate` — not toggled per
+lock/unlock state. This is a window-level flag, so setting it once already covers every page
+automatically (the "one central mechanism, not per-page" requirement falls out of the platform
+API for free), and on Android the same single flag blocks screenshot/screen-recording capture
+*and* the recents/app-switcher thumbnail simultaneously. Deliberately **not** toggled in sync with
+`IAuthenticationService.Locked`/unlock: that would reintroduce exactly the kind of async
+background-thread-vs-UI-thread race Phase 5's "unguarded repository calls" bug already
+demonstrated once in this codebase. Blocking screenshots of the lock/setup screens too costs
+nothing — nothing there is sensitive, but there's no reason to allow it either.
+
+**iOS — `SecureOverlayService`, a central blur+logo overlay, not per-page code.** iOS has no
+`FLAG_SECURE` equivalent: no API blocks screen recording outright, and the app-switcher preview is
+simply a snapshot of whatever the window looked like the instant the app resigned active. Instead,
+`Platforms/iOS/SecureOverlayService.cs` covers the entire key window with a `UIVisualEffectView`
+blur + centered "KeyKeeper" label whenever either of two independent triggers is true (shown if
+either, hidden only once both clear):
+- `UIScreen.CapturedDidChangeNotification` / `UIScreen.MainScreen.Captured` — screen
+  recording/mirroring has started.
+- The app is about to resign active (`applicationWillResignActive`/`applicationDidBecomeActive`,
+  wired via `MauiProgram.cs`'s `ConfigureLifecycleEvents(events => events.AddiOS(...))` rather than
+  touching `AppDelegate.cs`) — covers both a real backgrounding (the app-switcher snapshot is taken
+  at exactly this point) and transient inactivity (an incoming call, Control Center), the same
+  technique widely used by banking/password-manager apps.
+
+`SecureOverlayService.Start()` is called once from the `FinishedLaunching` lifecycle hook to begin
+observing capture state; `OnResignActivation`/`OnActivated` call `SetResignedActive(true/false)`.
+`UIScreen.Captured` (deprecated iOS 17.2+ in favor of `UITraitCollection.SceneCaptureState`) and
+`UIApplication.Windows` (deprecated iOS 15+ in favor of `UIWindowScene.Windows`) are both used
+anyway, with the deprecation warnings explicitly suppressed at each call site: their replacements
+either require iOS 17+ (this app's `SupportedOSPlatformVersion` is 15.0) or require adopting
+`UIScene`/`SceneDelegate`, which this single-`AppDelegate` app deliberately doesn't have. Unverified
+beyond compiling — no Mac/Xcode available in this environment, the same limitation as every other
+iOS-only piece of this app since Phase 2's SQLCipher testing section.
+
+### Root/jailbreak + debugger detection (`IDeviceSecurityChecker`, `IDeviceSecurityWarningService`)
+
+`IDeviceSecurityChecker.CheckDeviceSecurity()` returns a `DeviceSecurityCheckResult`
+(`IsRootedOrJailbroken`, `IsDebuggerAttached`, `Signals`). No single check here is authoritative in
+either direction — a custom ROM can legitimately carry a `test-keys` build tag with no root at all;
+a well-hidden root can pass a naive su-path check — so each platform implementation runs several
+independent checks and reports every one that found evidence via `Signals`, rather than trying to
+produce one single "definitely rooted" verdict from one method. The policy that turns evidence into
+a warning is deliberately simple: `DeviceSecurityCheckResult.RequiresWarning` is true the moment
+**any** signal fires, biased toward false positives over false negatives — safe only because the
+response (below) is a dismissable warning, never a block.
+
+**Android signals** (`Platforms/Android/DeviceSecurityChecker.cs`): su-binary presence at common
+install paths; a known root-manager/root-broker package installed (Magisk, SuperSU, KingRoot, and
+others via `PackageManager.GetPackageInfo` in a per-package try/catch); `Build.Tags` containing
+`test-keys`; `Build.Type` not equal to `"user"` (engineering/userdebug builds, common on custom
+ROMs, ship with a debuggable system and `adbd` running as root). Every individual check is wrapped
+in its own try/catch — a check that throws (e.g. a `PackageManager` quirk on some OEM skin) counts
+as "no evidence from that check" and never takes down the whole result, consistent with the overall
+bias toward an extra dismissable warning over a crash.
+
+**iOS signals** (`Platforms/iOS/DeviceSecurityChecker.cs`): known jailbreak app/file paths
+(Cydia/Sileo/Zebra/Substrate and others); a sandbox-escape write attempt to a `/private/...` path
+(a regular sandboxed app should always fail this; success is the signal, and the probe file is
+deleted either way); `cydia://` URL-scheme openability via `CanOpenUrl` (requires declaring
+`cydia` in `Info.plist`'s `LSApplicationQueriesSchemes` — without it iOS 9+ makes `CanOpenUrl`
+always answer `false` regardless of whether Cydia is installed, silently turning the check into a
+no-op); a non-empty `DYLD_INSERT_LIBRARIES` environment variable (tweak-injection/dynamic
+instrumentation signal — not exclusively a jailbreak indicator, but tampering either way).
+
+**Debugger detection, both platforms**: `#if !DEBUG`-gated, hardcoded `false` in Debug builds.
+A debugger is legitimately attached during every normal development run (`dotnet build ...
+-t:Run`, Visual Studio's own debugger) — checking this in Debug builds would fire on every single
+dev session, not a real attack. Android reads `Android.OS.Debug.IsDebuggerConnected` directly. iOS
+uses the classic Apple Technical Q&A QA1361 ("Detecting the Debugger") technique:
+`sysctl(CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid())` to fetch this process's `kinfo_proc`, then
+inspects the `P_TRACED` bit of `kp_proc.p_flag` — read directly by its known byte offset (32: the
+legacy BSD `extern_proc`'s `p_un` union (16 bytes) + `p_vmspace` pointer (8) + `p_sigacts` pointer
+(8), then `p_flag` immediately follows) rather than marshaling the entire struct field-by-field
+into C#; both approaches land on the identical bytes. Unverified on real hardware for the same
+reason as the rest of the iOS-only code this phase.
+
+### The warning screen — non-blocking, user decides, not a forced close
+
+`IDeviceSecurityWarningService`/`DeviceSecurityWarningService` is the actually-tested orchestration
+piece: `EvaluateDeviceSecurity()` runs the checker and sets `PendingWarning`/`HasPendingWarning`;
+`AcknowledgeAndContinue()` clears it. No persistence across launches by design — it re-evaluates
+fresh every cold start, so an acknowledged warning can reappear next launch rather than being
+silently remembered forever. Nothing in this phase's scope asked for a snooze/remember-choice
+mechanism, and a rooted/jailbroken state realistically doesn't change between launches anyway.
+
+**Why a dismissable warning instead of closing the app outright**: closing on every custom
+ROM/rooted-but-legitimate-owner device converts a security signal into a guaranteed
+support-ticket/uninstall event, while the realistic attacker this check is meant to catch isn't
+actually stopped by a client-side check either way — it can be patched out by the same tooling
+that achieved root in the first place. The genuine value here is informing a legitimate user that
+their device's OS-level guarantees (Keystore/Keychain-backed secure storage, sandboxing — several
+earlier phases' security properties lean on these) are weaker than normal; the decision to proceed
+anyway is theirs, not this app's to make for them.
+
+`AppShell.xaml` gained a 4th top-level `ShellContent` (`Route="security-warning"` →
+`SecurityWarningPage`), for the same routing reason `setup`/`lock`/`vault` are real `ShellContent`
+entries and not `Routing.RegisterRoute`-only global routes (see Phase 3's routing section): an
+absolute `GoToAsync("//security-warning")` needs a real `ShellContent` to land on. **A real bug
+found during this phase's own manual verification**: the first version of this file declared
+`security-warning` *first*, which makes Shell instantiate it as its own implicit default page —
+`SecurityWarningPage`'s `OnAppearing` (and therefore `SecurityWarningViewModel.Initialize()`) ran
+before `App.xaml.cs`'s `NavigateToInitialRouteAsync` had called `EvaluateDeviceSecurity()` at all,
+so the warning message rendered as an empty string; the later `GoToAsync("//security-warning")`
+turned out to be a same-route no-op once Shell already considered itself there, so `OnAppearing`
+never re-fired to pick up the real `PendingWarning`. Fixed by keeping `setup` first (as it always
+was) and placing `security-warning` last — it only needs to be *reachable* as a real `ShellContent`,
+not Shell's implicit default. Confirmed fixed via `uiautomator dump` showing the real Turkish
+warning message rendered correctly, and that tapping "Yine de Devam Et" correctly continues on to
+the lock screen — see `docs/phase7-verification/p7_05_security_warning_message_uiautomator_dump.txt`.
+
+`AppRouting.DetermineInitialRoute(IAuthenticationService)` (new, `KeyKeeper/AppRouting.cs`) extracts
+the setup/lock/vault ternary that used to live only inside `App.xaml.cs.NavigateToInitialRouteAsync`,
+so both the normal launch path and `SecurityWarningViewModel`'s "continue anyway" path share one
+source of truth instead of duplicating it. `SecurityWarningViewModel` (thin, like every other
+ViewModel in this app) builds a plain-language Turkish message from `PendingWarning` — never
+dumping the raw `Signals` list to the user — and offers a single `ContinueCommand`, deliberately no
+"close app" action.
+
+### Backup exclusion — re-verified, not rebuilt
+
+**Android**: `android:allowBackup="false"` was already set in Phase 2 — re-confirmed, not
+reintroduced. This phase adds one explicit, technically-redundant Android 12+
+`android:dataExtractionRules="@xml/data_extraction_rules"` (`Platforms/Android/Resources/xml/
+data_extraction_rules.xml`, excluding the whole `root` domain from both `cloud-backup` and
+`device-transfer`) as defense-in-depth: `allowBackup=false` already disables Auto Backup and, on
+Android 12+, cloud backup/device-to-device transfer regardless of this file's contents (per Phase
+2's own comment in `AndroidManifest.xml`), but this documents intent explicitly and keeps the app's
+backup posture correct even if `allowBackup` were ever accidentally flipped in a future change.
+Verified against the actual built/merged manifest, not just the source XML — `aapt dump xmltree`
+against the built APK confirms both `android:allowBackup=0x0` and a resolved
+`android:dataExtractionRules` resource, and a second `aapt dump xmltree` against the packaged
+`res/xml/data_extraction_rules.xml` itself confirms its `exclude domain="root"` content survived
+compilation — see `docs/phase7-verification/p7_04_manifest_backup_flags.txt`.
+
+**iOS**: no code change needed. `MauiVaultStoragePathProvider` (Phase 2) already excludes the vault
+database *and* the unencrypted unlock-metadata database (plus their WAL/SHM/journal sidecars) from
+iCloud backup via `NSFileManager.SetSkipBackupAttribute`. Re-read and re-confirmed this phase, not
+rebuilt. `ISecureKeyValueStore`/`MauiSecureKeyValueStore` (wrapping `SecureStorage`, i.e. the iOS
+Keychain) needs no separate opt-out either — this app never opts into iCloud Keychain
+synchronization (`kSecAttrSynchronizable`), so nothing stored there can leave the device via that
+path in the first place.
+
+### Tests (`KeyKeeper.Core.Tests/Security/DeviceSecurityWarningServiceTests.cs`)
+
+202 tests in the suite as of Phase 7 (up from 195 at the end of Phase 6), all passing. The 7 new
+ones exercise `DeviceSecurityWarningService` against a fake `IDeviceSecurityChecker` — the same
+"test the reaction, not the OS" split `AuthenticationServiceTests` already established with
+`FakeBiometricAuthService` (Phase 3): a clean result never sets a pending warning; a rooted,
+debugger-attached, or both result does; `AcknowledgeAndContinue()` clears a pending warning without
+re-running the check; and a fresh `EvaluateDeviceSecurity()` call after acknowledging can resurface
+the warning again (the regression test for the "no persistence across launches" design decision
+above).
+
+No test exists for either platform's `DeviceSecurityChecker` body, `FLAG_SECURE`,
+`SecureOverlayService`, `SecurityWarningPage`/its ViewModel's MAUI wiring, or
+`dataExtractionRules` — same structural reason as every prior platform-only piece of this app (see
+Phase 3's "Why neither side has (or can have) an xUnit test"): these need a live OS process, a real
+window/visual tree, or real Android/iOS platform behavior, none of which a desktop `dotnet test`
+run provides. The manual verification below is this layer's actual coverage.
+
+### Manual verification — Android emulator (`pixel_7_-_api_36_0`)
+
+Driven on the same running emulator as prior phases, via `adb`/`uiautomator`, plus `aapt` against
+the built APK for the manifest checks. Screenshots and evidence files checked into
+`docs/phase7-verification/`.
+
+**FLAG_SECURE blocks screenshots, unconditionally, on every screen**: `adb shell screencap -p`
+against the lock screen came back a solid black image
+(`p7_01_flag_secure_screenshot_blocked.png`) — the identical result Phase 3 already established
+for `FLAG_SECURE`-protected system dialogs (`BiometricPrompt`/enrollment screens). The same command
+against `SecurityWarningPage` (below) produced an identical black image
+(`p7_03_security_warning_page_screencap_also_blocked.png`, byte-identical in size to p7_01) —
+direct confirmation the protection really is unconditional across every page, not just the ones it
+was consciously tested against.
+
+**App-switcher thumbnail is blank, not the real screen**: `adb shell input keyevent
+APP_SWITCH` followed by a screencap of the recents screen (itself not blocked, since it's the
+launcher's own UI, not KeyKeeper's) shows KeyKeeper's card rendered as a solid black rectangle under
+its `.NET` app icon, instead of the real "Kasa Kilitli" lock screen
+(`p7_02_app_switcher_thumbnail_blank.png`) — confirming the second half of `FLAG_SECURE`'s effect
+alongside the screenshot block, from the same single flag.
+
+**Backup manifest flags, on the real built/merged manifest**: see
+`p7_04_manifest_backup_flags.txt` — `aapt dump xmltree` against the built APK confirms
+`allowBackup=0x0` and a resolved `dataExtractionRules` resource, and a second `aapt dump xmltree`
+against that packaged resource confirms its `exclude domain="root"` content survived compilation.
+
+**Root/jailbreak positive case: cannot be verified on this non-rooted emulator** — documented
+honestly, same spirit as Phase 2's on-device SQLCipher limitation. Unit-tested via fakes only (see
+Tests above). To still confirm the warning screen itself renders and behaves correctly, Android's
+`DeviceSecurityChecker.CheckDeviceSecurity()` was temporarily edited to add one unconditional
+forced signal, producing a real positive `RequiresWarning` on this otherwise-clean emulator; this
+is what caught the `AppShell` default-route bug described above, and after the fix, confirmed via
+`uiautomator dump` that the real Turkish warning message renders correctly and that "Yine de Devam
+Et" correctly continues on to the lock screen
+(`p7_05_security_warning_message_uiautomator_dump.txt`). The forced signal was reverted immediately
+after this check, before anything was committed — confirmed by rebuilding and relaunching once more
+and seeing the lock screen appear directly, with no warning, exactly as it should on a genuinely
+clean device.
+
+**Debugger-attached positive case**: same honesty caveat as root/jailbreak — unit-tested via fakes
+only, not manually verified positive on-device (the check is Release-only by design, and this
+emulator's app was built/run in Debug).
+
+**iOS**: compile-only (`dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-ios`) — no Mac/Xcode
+available in this environment, the same limitation as every other iOS-only piece of this app since
+Phase 2.
+
+### Dependency injection (`MauiProgram.cs`)
+
+Added this phase: `IDeviceSecurityChecker` → `DeviceSecurityChecker` (singleton, per-platform class
+resolved automatically, the same one-class-per-`Platforms/<X>/`-folder pattern as
+`IBiometricAuthService`), `IDeviceSecurityWarningService` → `DeviceSecurityWarningService`
+(singleton — the one evaluation done at launch and the acknowledgement made from
+`SecurityWarningPage` need to act on the same in-memory state). `SecurityWarningViewModel`/
+`SecurityWarningPage` registered transient, same as every other page. On iOS only, `MauiProgram.cs`
+also wires `SecureOverlayService.Start()`/`SetResignedActive(...)` into
+`ConfigureLifecycleEvents(events => events.AddiOS(...))` — not a DI registration, since
+`SecureOverlayService` is a static class with no per-instance state to inject.
+
 ## Explicitly out of scope so far
 - No dedicated tag-management screen (Phase 5) — tags are created inline from an item form's "Yeni
   etiket" field; renaming/deleting a tag entity or `ITagRepository.DeleteUnused` cleanup have no UI
@@ -1474,7 +1707,10 @@ singletons above, since the container resolves constructor parameters automatica
   now exists (Phase 6) and is wired into every item-form password field and the standalone
   generator, but not into the master-password field on first-run setup.
 - No instant lock-on-background (`App.OnSleep`) — only the inactivity timer and explicit "Kilitle"
-  currently lock the vault; backgrounding the app doesn't.
+  currently lock the vault; backgrounding the app doesn't. Phase 7's iOS `SecureOverlayService` and
+  Android's always-on `FLAG_SECURE` hide the *screen content* while backgrounded/in the
+  app-switcher, but neither one locks the vault itself — resuming the app still shows the same
+  unlocked screen underneath, with no re-authentication prompt.
 - No QR-code scanning for TOTP secret entry (Phase 6) — `LoginFormPage`'s TOTP field is manual
   Base32 text entry only; a user has to copy/retype the secret an issuer shows as a QR code.
 - No breach-check (HaveIBeenPwned-style) API for password strength (Phase 6, deliberate) —
@@ -1484,3 +1720,20 @@ singletons above, since the container resolves constructor parameters automatica
   `VaultItemFormViewModelBase`'s near-identical implementation (Phase 6) rather than sharing it,
   since the generator page isn't an item form and doesn't derive from that base — not extracted
   into a common helper yet.
+- No persistence of the device-security warning acknowledgement (Phase 7, deliberate) — it
+  re-evaluates fresh on every cold start, so a genuinely rooted/jailbroken device sees the warning
+  again on every launch rather than it being silently remembered forever; see
+  `IDeviceSecurityWarningService`'s doc comment.
+- No telemetry/reporting of which `DeviceSecurityCheckResult.Signals` fired (Phase 7, deliberate) —
+  consistent with this app's offline-first, no-network design; the list exists for a possible
+  future in-app debug view, not any external reporting.
+- No biometric gate on the device-security warning screen itself (Phase 7) — anyone with the
+  device unlocked at the OS level can see and dismiss it, same as any other pre-vault-unlock screen
+  in this app.
+- Android/iOS jailbreak-detection signal lists (Phase 7) are not exhaustive and are not maintained
+  against new root/jailbreak tooling as it appears — see `IDeviceSecurityChecker`'s doc comment for
+  why that's an accepted limitation of this whole approach, not a gap specific to this app's list.
+- The debugger-attached check (Phase 7) has never been manually verified as a true positive on
+  either platform — it's Release-only by design (see its own section above), and no Release build
+  with a real debugger attached was exercised on-device this phase; covered by
+  `DeviceSecurityWarningServiceTests`' fakes only.

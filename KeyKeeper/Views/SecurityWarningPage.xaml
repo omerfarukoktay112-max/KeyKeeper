@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
+             x:Class="KeyKeeper.Views.SecurityWarningPage"
+             x:DataType="viewmodels:SecurityWarningViewModel"
+             Title="Güvenlik Uyarısı">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="30" Spacing="20" VerticalOptions="Center">
+
+            <Label
+                Text="⚠️"
+                FontSize="48"
+                HorizontalTextAlignment="Center" />
+
+            <Label
+                Text="Güvenlik Uyarısı"
+                Style="{StaticResource Headline}"
+                HorizontalTextAlignment="Center" />
+
+            <Label
+                Text="{Binding Message}"
+                HorizontalTextAlignment="Center" />
+
+            <Button
+                Text="Yine de Devam Et"
+                Command="{Binding ContinueCommand}"
+                HorizontalOptions="Fill" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
