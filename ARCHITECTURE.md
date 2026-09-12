@@ -446,6 +446,13 @@ unlock/initialize, calls `Reset()` on `NotifyUserActivity()`, and its `TimedOut`
 straight to `Lock()`. Distinct from an instant lock-on-background, which is a separate concern
 (`App.OnSleep`, not built yet).
 
+**Fixed, post-Phase-4**: for all of Phase 3 and Phase 4, `NotifyUserActivity()` existed and was
+fully unit-tested, but nothing in the UI ever actually called it — no page wired it to real
+touch/typing/navigation — so this timer measured time-since-unlock, not time-since-last-
+interaction (caught during Phase 4's manual verification; see its "Manual verification" section
+for how). Now wired app-wide; see "Fix: inactivity timer now tracks real user interaction" after
+Phase 4 below for `PageActivityBehavior` and the `Shell.Navigated` hook that close this gap.
+
 ### Biometric prompt (`IBiometricAuthService`)
 
 Deliberately kept free of any vault/key logic: it only answers "is biometric hardware available"
@@ -912,9 +919,8 @@ for every field, not just the two the list view happens to surface.
   after the *last* interaction like the name implies. It surfaced here only because filling five
   forms with screenshots in between took long enough to hit it (confirmed as `11-locked-after-
   license.png` above). Pre-existing since Phase 3 (`NotifyUserActivity` was added to the interface
-  then but never called from anywhere); not fixed here as it's outside this phase's CRUD scope —
-  worth a dedicated fix (wiring it to `Shell.Current.Navigated` or a tap-through gesture recognizer
-  at the `AppShell` level) before this app is used for real.
+  then but never called from anywhere); not fixed here as it's outside this phase's CRUD scope.
+  **Fixed afterward** — see "Fix: inactivity timer now tracks real user interaction" below.
 - **`adb shell input text` silently truncates at the first space** unless spaces are encoded as
   literal `%s` (e.g. `input text "Ana%sKartim"`, not `input text "Ana Kartim"`) — the quoting is
   consumed by the local shell before reaching the remote `adb shell`, so multi-word values like
@@ -949,6 +955,84 @@ backend services). Pages/ViewModels, all transient like Phase 3's: `VaultListVie
 registrations) and one transient pair each for `LoginFormViewModel`/`LoginFormPage`,
 `CardFormViewModel`/`CardFormPage`, `WifiFormViewModel`/`WifiFormPage`,
 `NoteFormViewModel`/`NoteFormPage`, `LicenseFormViewModel`/`LicenseFormPage`.
+
+## Fix: inactivity timer now tracks real user interaction (`KeyKeeper/Behaviors/PageActivityBehavior.cs`)
+
+Closes the gap found during Phase 4's manual verification (see above): before this fix,
+`IAuthenticationService.NotifyUserActivity()` existed and was fully unit-tested, but nothing in
+the UI ever called it, so `InactivityTimerService` measured time-since-unlock, not time-since-
+last-interaction — a 2-minute-active session could auto-lock mid-use.
+
+### `PageActivityBehavior` — one Behavior, applied app-wide via an implicit style
+
+A `Behavior<Page>` that, on the page's `Appearing` event, walks the page's visual tree once (via
+`IVisualTreeElement.GetVisualChildren()`, MAUI's own tree-traversal API — not a specific layout
+type) and subscribes to the natural "the user just did something" event of every interactive
+control it finds: `Button.Clicked`, `Entry`/`Editor.TextChanged`, `Switch.Toggled`,
+`Picker.SelectedIndexChanged`, `DatePicker.DateSelected`. Each of those, plus the page's own
+`Appearing`, calls `NotifyUserActivity()`.
+
+Applied to *every* page with a single `Setter Property="Behaviors"` added to the existing implicit
+`<Style TargetType="Page" ApplyToDerivedTypes="True">` in `Styles.xaml` — no per-page XAML or
+code-behind changes, current or future pages included. This was the deciding factor over the
+alternative considered (a common base `ContentPage` subclass every page would need to inherit
+from instead of `ContentPage` directly): a style-based `Behavior` needs zero changes to the six
+existing pages that already exist, and imposes nothing on whoever writes the next one.
+
+`NotifyUserActivity` is reached via `IAuthenticationService`, resolved through
+`IPlatformApplication.Current.Services` rather than constructor injection — an implicit style
+instantiates a `Behavior` directly through the XAML/style engine, outside the DI container, so
+there's no constructor for the container to inject into. This is the standard MAUI pattern for
+exactly this situation (behaviors, converters, triggers needing a DI-registered service).
+
+### Why this alone doesn't cover *every* tap: `Shell.Navigated` for page-to-page navigation
+
+`PageActivityBehavior` only sees controls that exist in a page's own content — it can't see
+`VaultListPage`'s row taps (a `Grid` + `TapGestureRecognizer` bound to a `Command`, not a
+`Button`) or the toolbar's "Ekle"/"Kilitle" (`ToolbarItem`, a `MenuItem`, not part of the visual
+content tree at all). Rather than special-case every such control, `App.xaml.cs` separately
+subscribes to `Shell.Navigated` once, in `CreateWindow`, right after constructing `AppShell`:
+every `GoToAsync` call anywhere in the app — including the one a row tap or a chosen "Ekle" item
+type triggers — reports activity this way instead. The one edge case still missed: opening the
+"Ekle" action sheet and tapping "İptal" (no navigation results) doesn't register as activity;
+judged not worth special-casing a `DisplayActionSheet` cancellation for.
+
+### Tests (`KeyKeeper.Core.Tests/Auth/InactivityTimerServiceTests.cs`)
+
+`PageActivityBehavior` itself is UI/platform code with no practical xUnit seam (same reasoning as
+Phase 3's biometric prompt — see "Why neither side has (or can have) an xUnit test" — a `Behavior`
+needs a live page's visual tree and a running `IPlatformApplication`, neither available to a
+desktop test run). What *is* unit-tested, newly, is the timer behavior this UI wiring now
+actually exercises in practice: two tests added to the existing `InactivityTimerServiceTests`,
+128 tests in the suite in total (up from 126) —
+- **`Reset_CalledPeriodicallyAcrossSeveralTimeoutWindows_NeverFires`**: ten `Reset()` calls spaced
+  30 seconds apart (5 minutes of simulated activity, well past the 2-minute `Timeout`) — confirms
+  `TimedOut` never fires as long as activity keeps arriving more often than `Timeout`, the
+  regression test for the exact gap this fix closes.
+- **`Reset_CalledPeriodicallyThenStops_StillFiresTimeoutAfterLastReset`**: the other half — activity
+  postpones the lock only while it keeps happening; once it genuinely stops, `TimedOut` still
+  fires `Timeout` after the *last* `Reset()`, not forgotten or postponed indefinitely.
+
+### Manual verification — Android emulator
+
+Driven on the same running `pixel_7_-_api_36_0` emulator as Phases 3-4, via `adb shell input`, with
+timestamps measured from the moment of unlock (`t=0s`). Screenshots checked into
+`docs/inactivity-fix-verification/`.
+
+**Scenario 1 — active use past the old unconditional 2-minute cutoff never locks**: unlocked the
+vault (`01-unlocked-start.png`), then performed four separate interaction bursts (opening/closing
+an item, adding a note and typing its title, opening another item, opening a third) spaced roughly
+25-45 seconds apart — at `t=28s`, `t=74-78s`, `t=129-131s`, and `t=172-175s`. The `t=129s` and
+`t=172s` bursts are the ones that matter: both land *past* the old 2-minute (120s) unconditional
+timeout, and the vault was still unlocked and showing all five items at every check
+(`02-burst1.png` through `05-burst4-then-idle-start.png`) — confirming sustained, realistic
+interaction no longer auto-locks mid-session.
+
+**Scenario 2 — genuine inactivity still locks**: immediately after the `t=175s` interaction, the
+emulator was left completely untouched (no `adb` input of any kind) for over two minutes.
+Confirmed locked afterward — `Kasa Kilitli` / the master-password prompt shown again
+(`06-idle-then-locked.png`) — proving this fix didn't accidentally disable the auto-lock itself,
+only its false-positive firing during active use.
 
 ## Explicitly out of scope so far
 

@@ -20,7 +20,16 @@ namespace KeyKeeper
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            var window = new Window(new AppShell());
+            var shell = new AppShell();
+
+            // Page-to-page navigation is itself user activity -- covers cases a page's own
+            // controls can't, like tapping a VaultListPage row (a Grid + TapGestureRecognizer,
+            // not a Button) to open it. Continued interaction on a page already reached
+            // (typing, toggling) is the Behaviors\PageActivityBehavior applied to every page via
+            // Styles.xaml, not this.
+            shell.Navigated += (_, _) => _auth.NotifyUserActivity();
+
+            var window = new Window(shell);
             window.Created += async (_, _) => await NavigateToInitialRouteAsync();
             return window;
         }
