@@ -1,4 +1,5 @@
 ﻿using KeyKeeper.Core.Auth;
+using KeyKeeper.Core.Backup;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Security;
@@ -87,6 +88,12 @@ namespace KeyKeeper
             builder.Services.AddSingleton<IFolderRepository, FolderRepository>();
             builder.Services.AddSingleton<ITagRepository, TagRepository>();
 
+            // Yedekleme (Phase 8): BackupFormatMigrator/BackupService are stateless, cheap to
+            // construct singletons -- same lifetime reasoning as the repositories above.
+            builder.Services.AddSingleton<IBackupFormatMigrator, BackupFormatMigrator>();
+            builder.Services.AddSingleton<IBackupService, BackupService>();
+            builder.Services.AddSingleton<ICsvExportService, CsvExportService>();
+
             // Araçlar (Phase 6): pure-logic pieces are stateless/cheap (or, for the clipboard
             // clearer, need exactly one shared pending-clear timer app-wide), so all four are
             // singletons -- same lifetime reasoning as the repositories above.
@@ -139,6 +146,8 @@ namespace KeyKeeper
             builder.Services.AddTransient<FolderManagementPage>();
             builder.Services.AddTransient<PasswordGeneratorViewModel>();
             builder.Services.AddTransient<PasswordGeneratorPage>();
+            builder.Services.AddTransient<BackupViewModel>();
+            builder.Services.AddTransient<BackupPage>();
 
             return builder.Build();
         }

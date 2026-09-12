@@ -10,8 +10,8 @@ KeyKeeper.slnx
 │   ├── Behaviors/            # PageActivityBehavior — app-wide inactivity-timer activity reporting (post-Phase-4 fix — done)
 │   ├── Data/                # (empty — Data/ is now KeyKeeper.Core/Data, see below)
 │   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore, FolderTreeFlattener (Phase 5), MauiClipboard (Phase 6 — done)
-│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel, PasswordGeneratorViewModel, SecurityWarningViewModel (Phase 7) + 5 item form ViewModels
-│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage, PasswordGeneratorPage, SecurityWarningPage (Phase 7) + 5 item form pages
+│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel, PasswordGeneratorViewModel, SecurityWarningViewModel (Phase 7), BackupViewModel (Phase 8) + 5 item form ViewModels
+│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage, PasswordGeneratorPage, SecurityWarningPage (Phase 7), BackupPage (Phase 8) + 5 item form pages
 │   ├── Resources/            # Standard MAUI resource structure (AppIcon, Fonts, Images, Raw, Splash, Styles)
 │   └── Platforms/            # Platform-specific entry points (Android/, iOS/) — BiometricAuthService.cs and DeviceSecurityChecker.cs (Phase 7) per platform; Android also gets Resources/xml/data_extraction_rules.xml, iOS also gets SecureOverlayService.cs (Phase 7 — done)
 ├── KeyKeeper.Core/          # Plain net10.0 class library — pure logic, no MAUI/UI/platform references
@@ -21,14 +21,16 @@ KeyKeeper.slnx
 │   ├── Storage/               # Wrapped-key storage abstraction for biometric unlock (Phase 2 — done)
 │   ├── Models/               # Vault item domain models: LoginItem, CardItem, WifiItem, SecureNoteItem, LicenseItem (Phase 4 — done)
 │   ├── Tools/                 # Password generator, strength analyzer, TOTP generator, clipboard auto-clear (Phase 6 — done)
-│   └── Security/              # Device-security check + warning orchestration (Phase 7 — done)
+│   ├── Security/              # Device-security check + warning orchestration (Phase 7 — done)
+│   └── Backup/                # Versioned .vault export/import, CSV export (Phase 8 — done)
 └── KeyKeeper.Core.Tests/    # xUnit tests for KeyKeeper.Core (net10.0)
     ├── Auth/
     ├── Crypto/
     ├── Data/
     ├── Storage/
     ├── Tools/
-    └── Security/
+    ├── Security/
+    └── Backup/
 ```
 
 Note: `KeyKeeper/Data/` (inside the MAUI head project) is intentionally empty — see "Why the storage
@@ -73,7 +75,7 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
   `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of
-  Phase 5, 195 as of Phase 6, 202 as of Phase 7).
+  Phase 5, 195 as of Phase 6, 202 as of Phase 7, 220 as of Phase 8).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -1693,6 +1695,285 @@ also wires `SecureOverlayService.Start()`/`SetResignedActive(...)` into
 `ConfigureLifecycleEvents(events => events.AddiOS(...))` — not a DI registration, since
 `SecureOverlayService` is a static class with no per-instance state to inject.
 
+## Phase 8: Backup — versioned .vault export/import, CSV export (`KeyKeeper.Core/Backup`, `KeyKeeper/ViewModels`, `KeyKeeper/Views`)
+
+Whole-vault backup: a versioned, encrypted `.vault` export/import format, and a separate,
+deliberately-warned-about plaintext CSV export. Closes the gap `KeyKeeper.Core/Data` had had since
+Phase 2 — no way to get data out of (or back into) the vault as a portable file at all.
+
+### `.vault` file format (`VaultBackupHeader`, `VaultBackupFile`)
+
+On-disk layout: `MAGIC (8 bytes, "KKVLTBKP") || header length (4-byte little-endian int32) ||
+header JSON (UTF-8) || encrypted payload (rest of file)`. A length-prefixed binary framing was
+chosen over a text delimiter specifically so the header's own JSON content can never be misread as
+part of a separator, and the encrypted payload — arbitrary binary, not text — never needs escaping.
+
+**The header is deliberately unencrypted** (`VaultBackupHeader`: `FormatVersion`, `Salt`,
+the four Argon2id parameters, `CreatedAtUtc`) — exactly the same reasoning
+`KeyKeeper.Core.Data.VaultUnlockMetadata` already established for the live vault's own unlock
+metadata (Phase 3): a KDF salt and cost parameters are meant to be public, and without the master
+password an attacker who only has this header can't derive the key that decrypts the payload.
+
+**Why `FormatVersion` exists, restated explicitly (also asked for by name in this phase's brief):**
+a `.vault` file is meant to outlive the exact version of the app that wrote it — restoring a
+years-old backup into a much newer install must still work, or at minimum fail with a clear,
+specific message rather than silently misinterpreting old data as if it were the current shape.
+Writing the version once, up front, into every file (rather than trying to sniff the payload's
+shape after the fact) is what makes that possible at all. `IBackupFormatMigrator` is where that
+version gets acted on:
+
+```csharp
+public interface IBackupFormatMigrator
+{
+    int CurrentFormatVersion { get; }
+    void EnsureSupported(int version); // throws UnsupportedBackupVersionException if version > CurrentFormatVersion
+}
+```
+
+`BackupFormatMigrator` is, deliberately, a near-empty version-1 skeleton today — same
+"settle the shape of migration handling now, before there's anything to migrate" spirit as
+`KeyKeeper.Core.Data.VaultMigrationService` (Phase 2). When a future phase changes the encrypted
+payload's JSON shape, the transform step goes inside `EnsureSupported` (or a dedicated migrate
+step called from `BackupService`), following the exact pattern `VaultMigrationService.EnsureUpToDate`
+already established for the live schema — not a redesign from scratch.
+
+### Encrypted payload (`VaultBackupPayload`, `BackupFolder`/`BackupTag`/`BackupItem`)
+
+A single JSON object holding every folder, tag, and item — `BackupItem.Payload` is a
+`JsonElement` (the item's type-specific fields, e.g. a `LoginItem`'s shape) rather than a second
+boxed `object`, since it needs to round-trip through JSON either way and this avoids a pointless
+extra encode/decode through a concrete C# type during import (`BackupService` just re-serializes
+the `JsonElement` straight back out and re-encrypts it — no `VaultItemType`-keyed switch needed on
+import at all, unlike export, which does need one to call `JsonSerializer.SerializeToElement(payload,
+payload.GetType())` against the boxed runtime type).
+
+### `IBackupService` / `BackupService`
+
+**Key separation on export, not reuse of the live vault's own salt**: `ExportAsync` derives a
+completely fresh Argon2id key — a new random salt, `Argon2Parameters.Default` cost — for the
+backup's own encryption, rather than reusing the live vault's salt from `IVaultUnlockStore` (which
+would derive the *exact same key* SQLCipher already uses for the vault database file). A backup is
+a separate artifact with its own lifecycle — cloud storage, email, an old phone — so giving it
+independent key material means a compromise of one (backup file or live vault) doesn't directly
+hand over the key to the other, even though both are ultimately derived from the same master
+password. This costs a second Argon2id derivation per export (one to verify the entered password
+against the live vault's own verifier — so a typo is reported as `WrongPassword` instead of
+silently producing an unreadable backup — one to derive the backup's own key): acceptable for an
+explicit, infrequent, user-initiated operation.
+
+**Import is a two-step, confirm-before-destroy flow**, not a single call:
+
+```csharp
+Task<BackupImportResult> PrepareImportAsync(string filePath, char[] masterPassword);
+Task CommitImportAsync(BackupImportPreview preview);
+```
+
+`PrepareImportAsync` fully validates the password and file — reads it, checks the magic/length
+framing, checks `FormatVersion` via `IBackupFormatMigrator`, derives the key from the *header's*
+salt/parameters (not the live vault's), and decrypts — entirely without touching the current
+vault's data, and returns a `BackupImportResult` whose `Kind` is one of `Success`, `WrongPassword`,
+`CorruptFile`, or `UnsupportedVersion` (each with its own Turkish `ErrorMessage`) rather than
+throwing for any of these three expected-failure paths — the same "expected failures are a result,
+not an exception" precedent `KeyKeeper.Core.Auth.AuthenticationResult` already set for
+unlock/lockout. Only a `Success` result carries a `BackupImportPreview` (folder/tag/item counts —
+what a confirmation dialog shows the user — plus the decrypted payload itself, held only in
+memory). `CommitImportAsync` is the only method that actually touches the live vault, and only
+once a UI layer has shown that preview to the user and gotten explicit confirmation.
+
+**Replace, not merge (MVP scope decision)**: `CommitImportAsync` always *replaces* every
+folder/tag/item currently in the vault with what the preview holds — it does not attempt to merge
+the two sets. A merge needs a real conflict-resolution design (same id in both, same title but
+different fields, a folder that exists in one but not the other, ...) that nothing in this phase's
+scope asked for; replace is simple, predictable, and matches what "restore a backup" usually means
+(recover exactly what a backup captured) rather than "combine two vaults" (a plausible future
+feature, deliberately not this one). Documented on `BackupImportPreview` itself, not just here.
+
+**How the replace is actually done**: `CommitImportAsync` doesn't go through
+`IVaultItemRepository`/`IFolderRepository`/`ITagRepository`'s `Create` methods — those always
+assign a fresh id and "now" timestamps, which would silently discard the backup's original
+ids/timestamps/favorite flags on restore. Instead it runs raw SQL directly against
+`IVaultDatabaseService`'s connection: `PRAGMA foreign_keys = OFF` (SQLite only honors a change to
+this pragma outside a pending transaction, so it has to happen *before* the transaction starts, not
+inside it), then inside one transaction: delete `ItemTags`/`VaultItems`/`Tags`/`Folders`, then
+insert every folder/tag/item from the backup with its original id preserved, re-encrypting each
+item's payload under the *currently open* vault's own key via
+`IAuthenticationService.EncryptWithVaultKey` (never the backup's own key — the two are
+independently derived and only coincide if the target vault happens to share the same master
+password, which import must not assume). `PRAGMA foreign_keys = ON` is restored after the
+transaction commits. Toggling FK enforcement this way means folders/items/item-tags can be
+reinserted in whatever order the backup file lists them, without a topological sort.
+
+Export, by contrast, reads through the already-tested repositories
+(`IFolderRepository.ListAll()`/`ITagRepository.ListAll()`/`IVaultItemRepository.List()`) rather than
+raw SQL — every item comes back already decrypted under the live vault key, so `BackupService`
+never touches `VaultItems.EncryptedPayload` directly on the way out.
+
+### CSV export (`ICsvExportService`/`CsvExportService`)
+
+One flat CSV, one row per item, columns being the union of every item type's fields (a per-type
+column is blank on a row of a different type) — chosen over five separate per-type files or a
+nested format, matching what other password managers' plaintext exports typically do and keeping
+"open this in a spreadsheet" genuinely simple. Hand-rolled RFC 4180 quoting (comma/quote/newline
+triggers wrapping in double quotes, with internal quotes doubled) — no CsvHelper-style dependency,
+consistent with this app's minimal-dependencies posture, since the format needed here is small and
+fixed. Every field, including passwords/CVVs/license keys, appears in the clear — this is a
+deliberate, explicitly-warned-about escape hatch (see `BackupViewModel` below), not a
+safe-by-default export path.
+
+### UI (`KeyKeeper/ViewModels/BackupViewModel.cs`, `KeyKeeper/Views/BackupPage.xaml`)
+
+One page, "Yedekleme," reachable from `VaultListPage`'s toolbar (`Routing.RegisterRoute("backup",
+...)`, pushed relatively like `folder-management`/`password-generator` — not a `ShellContent`, since
+nothing navigates to it absolutely). One shared, masked `MasterPassword` `Entry` feeds all three
+actions below — re-typed and re-verified for *each* one (`IBackupService.VerifyMasterPasswordAsync`
+for the CSV path, since it doesn't otherwise need a key derivation of its own), never reused from
+whatever unlocked the vault originally, so a hijacked UI session still can't export/restore/CSV-dump
+without the real master password:
+
+- **"Yedek Oluştur (.vault)"** — `ExportVaultCommand`: calls `ExportAsync`, writes the result to
+  `FileSystem.CacheDirectory`, and hands it to `Share.Default.RequestAsync` (a `ShareFileRequest`).
+- **"Yedekten Geri Yükle"** — `ImportVaultCommand`: `FilePicker.Default.PickAsync` (any file type —
+  registering a custom `.vault` UTI/MIME association is more platform config than this phase's
+  scope called for; `VaultBackupFile.Unpack`'s magic-byte check already rejects an unrelated file
+  with a clear message regardless of what the user picks) → `PrepareImportAsync` → on
+  `Success`, a `DisplayAlert` showing the exact folder/tag/item counts and an explicit "bu işlem
+  geri alınamaz" warning → only on confirmation, `CommitImportAsync`.
+- **"CSV Olarak Dışa Aktar (Uyarılı)"** — `ExportCsvCommand`: a `DisplayAlert` warning the file will
+  be entirely unencrypted, *then* the shared master-password field is checked via
+  `VerifyMasterPasswordAsync` (so accidentally tapping through the warning still requires typing the
+  real password), then the CSV is built from `IVaultItemRepository.List()` and shared the same way
+  as the `.vault` file.
+
+**No `MAUI FileSaver` package** ("write to a location the user picks") — the built-in
+`Microsoft.Maui.ApplicationModel.DataTransfer.Share` API already covers it: both Android's and
+iOS's native share sheets include a "Save to Files"-equivalent destination alongside whatever apps
+can receive the file, so sharing a temp file accomplishes the same "user picks where it ends up"
+outcome without a new dependency — consistent with this app's already-small package footprint (see
+the Packages table above). The exported file is first written to `FileSystem.CacheDirectory` —
+app-private, and on both platforms excluded from backups by OS convention without needing the
+`NSFileManager` attribute dance `MauiVaultStoragePathProvider` does for `Library/` (iOS's `Caches/`
+isn't backed up by default; Android's cache dir is excluded from Auto Backup the same way
+`allowBackup="false"` already excludes everything else) — purely so `Share`/the file picker have a
+real path to hand off, not because that temp copy is itself the persisted backup.
+
+**A real bug found during this phase's own manual verification, fixed before commit**: the first
+version of `BackupViewModel` set `ErrorMessage` on a `WrongPassword`/`CorruptFile`/
+`UnsupportedVersion`/locked-vault outcome without clearing the still-set `StatusMessage` from
+immediately beforehand ("Yedek dosyası okunuyor ve doğrulanıyor..."), so both labels rendered
+simultaneously — confirmed via a real wrong-password import attempt on the emulator, where
+`uiautomator`'s accessibility dump showed both `TextView`s present with their real text (the
+`ScrollView` had simply pushed the newly-visible error label below the fold, not hidden it). Fixed
+by clearing `StatusMessage` at every point `ErrorMessage` gets set for an outcome, in all three
+commands.
+
+### Tests (`KeyKeeper.Core.Tests/Backup/BackupServiceTests.cs`, `CsvExportServiceTests.cs`)
+
+220 tests in the suite as of Phase 8 (up from 202 at the end of Phase 7), all passing. The 18 new
+ones use a `VaultHarness` — a complete, real vault stack (real Argon2id/AES-GCM crypto, a real
+SQLite-backed vault database via the plain test provider, real repositories, a real
+`BackupService`) — and, critically, round-trip tests construct *two independent* harnesses (a
+"source" vault being exported from, a "target" vault being restored into, each with its own master
+password) specifically to prove import never depends on the exporting vault's own database, key, or
+even still existing — exactly the "reset the app, restore on a fresh vault" scenario this feature
+exists for:
+
+- Export/import round-trips successfully with the correct password, preserving item/folder/tag
+  counts.
+- `CommitImportAsync` replaces the target vault's pre-existing content entirely (a pre-existing item
+  is gone afterward) while faithfully preserving the imported item's id, folder, favorite flag, and
+  tags, and its payload decrypts correctly under the *target* vault's own key (proving the
+  re-encryption step, not just that bytes moved).
+- Wrong password on export and on import are each reported as a distinct result kind, not thrown as
+  exceptions, and never touch anything.
+- A structurally unrelated random file, and a file truncated mid-header (long enough to pass the
+  magic-byte check but too short for its own declared header length), are each reported as
+  `CorruptFile` — including the `ArgumentException` path `AesGcmEncryptionService.Decrypt` throws for
+  an encrypted payload too short to contain a nonce+tag, which `PrepareImportAsync` explicitly
+  catches alongside `VaultCryptographyException` so no exception ever escapes uncaught.
+- A `.vault` file whose header `FormatVersion` is tampered to a future value is reported as
+  `UnsupportedVersion`, distinctly from either of the above.
+- `VerifyMasterPasswordAsync` returns true/false correctly without touching any file.
+- `CsvExportService` produces the documented header row and correct, unencrypted values for all
+  five item types, and correctly quotes fields containing a comma or a double quote.
+
+No test exists for `BackupViewModel`'s MAUI wiring (`FilePicker`/`Share`/`DisplayAlert` calls) or for
+`VaultBackupFile`'s exact byte layout in isolation (covered indirectly, through `BackupService`) —
+same structural reason as every other MAUI-head-only piece in this app (see Phase 3's "Why neither
+side has (or can have) an xUnit test"): these need a live OS process. The manual verification below
+is this layer's actual coverage.
+
+### Manual verification — Android emulator (`pixel_7_-_api_36_0`)
+
+Driven on the same running emulator as prior phases, via `adb`/`uiautomator`, after a clean
+uninstall/reinstall so this phase's setup/data entry happened for real, not on top of leftover state
+from an earlier phase's testing. Screenshots and uiautomator-dump text excerpts are checked into
+`docs/phase8-verification/`.
+
+**A real export, from a real running vault**: created a folder ("Is"), a Login item ("GitHub" /
+"octocat" / a password / a URL, tagged "onemli", filed in "Is"), entered the master password on the
+new "Yedekleme" page, and tapped "Yedek Oluştur (.vault)". Confirmed via `adb shell run-as
+com.companyname.keykeeper ls` that a real 803-byte `keykeeper-yedek-<timestamp>.vault` file was
+written to the app's private cache directory, and the real Android share sheet appeared offering
+it ("Sharing 1 file", `keykeeper-yedek-20260912-154033.vault") — `p8_01_export_share_sheet.png`.
+The file itself was pulled off-device via `adb exec-out run-as ... cat` (not plain `adb shell cat`,
+which allocates a pty and corrupts binary output by translating embedded `\n` bytes to `\r\n` — this
+was caught empirically: a first attempt via `adb shell cat > file` produced a 804-byte file for an
+803-byte source) — see `p8_07_real_exported_vault_file.vault`.
+
+**A real restore, from that real file, with full data fidelity**: pushed the exported file to the
+emulator's `Download/` folder, opened "Yedekten Geri Yükle," entered the master password, and picked
+the file via the real Android document picker (`com.google.android.documentsui`). The app correctly
+showed the confirmation dialog with the exact real counts — "1 öğe, 1 klasör, 1 etiket içe
+aktarılacak..." (`p8_06_import_confirmation_dialog_uiautomator_dump.txt`) — confirming, and the
+vault list still showed the folder/tag/item correctly afterward. Opening the restored item and
+revealing its password field showed the exact original value, confirming byte-for-byte fidelity
+through the full encrypt → decrypt → re-encrypt → decrypt cycle
+(`p8_02_import_item_detail_after_restore_uiautomator_dump.txt`) — this was run as a same-vault
+restore (replacing the vault's own just-exported data with itself) rather than a second, separate
+install, since driving the real Android document picker by coordinates is itself slow enough that
+the 2-minute inactivity auto-lock repeatedly fired mid-navigation during this phase's own testing
+(see below); the cross-*vault* restore property (a second, independently-keyed target vault, with
+its own pre-existing different data, ending up with exactly the source vault's content afterward) is
+what `BackupServiceTests.CommitImportAsync_ReplacesTheTargetVaultsExistingContentsWithTheImportedData`
+proves instead, unaffected by that on-device timing constraint.
+
+**Wrong password rejected, distinctly**: entered a deliberately wrong password and picked the same
+real file. The app correctly reported "Ana parola yanlış ya da dosya bozulmuş." rather than treating
+it as any other failure —
+`p8_05_wrong_password_import_error_uiautomator_dump.txt`.
+
+**CSV export's warning + re-confirmation shown for real**: tapping "CSV Olarak Dışa Aktar (Uyarılı)"
+showed the unencrypted-data warning dialog (`p8_03_csv_export_warning_dialog_uiautomator_dump.txt`);
+after acknowledging it and having the master password entered, the real Android share sheet
+appeared offering a real `keykeeper-export-<timestamp>.csv`
+(`p8_04_csv_export_share_sheet_uiautomator_dump.txt`). The file was pulled the same
+`exec-out run-as ... cat` way and confirmed to contain the item's data in the clear with the
+documented column set — `p8_08_real_exported_csv.csv`.
+
+**An observed, accepted limitation, not a bug**: the vault's 2-minute inactivity auto-lock timer
+(Phase 3) keeps running while a system file picker or share sheet is in the foreground (this app
+never pauses it on backgrounding — see "No instant lock-on-background" below), and driving either
+one by real screen-coordinate taps through `adb`/`uiautomator` — rather than a real person tapping
+at human speed — took long enough on several attempts that the vault auto-locked mid-flow, before a
+result could be observed. This isn't a code defect: `PrepareImportAsync` itself never requires the
+vault to be unlocked (only `CommitImportAsync` and export do, correctly reflected in both methods'
+documented exceptions), so an auto-lock mid-file-pick doesn't corrupt anything, it just means
+`IAuthenticationService.Locked`'s central lock-screen navigation (`App.xaml.cs`) can win a race
+against whatever the Backup page was about to show. Working around this would mean special-casing
+the inactivity timer around backup operations specifically, which nothing in this phase's scope
+asked for.
+
+**iOS**: compile-only (`dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-ios`) — no Mac/Xcode
+available in this environment, the same limitation as every other iOS-only piece of this app since
+Phase 2.
+
+### Dependency injection (`MauiProgram.cs`)
+
+Added this phase: `IBackupFormatMigrator` → `BackupFormatMigrator`, `IBackupService` →
+`BackupService`, `ICsvExportService` → `CsvExportService` (all singletons — stateless/cheap to
+construct, same lifetime reasoning as the repositories they sit alongside). `BackupViewModel`/
+`BackupPage` registered transient, same as every other page.
+
 ## Explicitly out of scope so far
 - No dedicated tag-management screen (Phase 5) — tags are created inline from an item form's "Yeni
   etiket" field; renaming/deleting a tag entity or `ITagRepository.DeleteUnused` cleanup have no UI
@@ -1737,3 +2018,21 @@ also wires `SecureOverlayService.Start()`/`SetResignedActive(...)` into
   either platform — it's Release-only by design (see its own section above), and no Release build
   with a real debugger attached was exercised on-device this phase; covered by
   `DeviceSecurityWarningServiceTests`' fakes only.
+- **Backup restore is replace-only, never merge** (Phase 8, deliberate) — `CommitImportAsync`
+  always wipes the vault's existing folders/tags/items before inserting the backup's; see
+  `BackupImportPreview`'s doc comment for why a real merge is a separate, harder feature this phase
+  didn't attempt.
+- No custom `.vault` file-type/UTI registration on either platform (Phase 8) — `FilePicker` is
+  opened with no file-type filter, so the user can attempt to pick any file; `VaultBackupFile`'s
+  magic-byte check is what turns picking the wrong file into a clear `CorruptFile` message rather
+  than a crash, not OS-level filtering.
+- No biometric/re-auth gate before *starting* a `.vault`/CSV export beyond re-entering the master
+  password (Phase 8) — same trust boundary as everywhere else in this app: whoever can type the
+  correct master password can export.
+- The inactivity auto-lock timer (Phase 3) is not paused or extended around backup export/import
+  (Phase 8, deliberate) — see this phase's manual-verification section for what was actually
+  observed and why special-casing it wasn't attempted.
+- No dedicated CSV *import* (Phase 8) — only `.vault` files can be restored; CSV is an export-only,
+  one-way escape hatch.
+- No column/field selection for CSV export (Phase 8) — it's always every column for every item,
+  including ones a given item type leaves blank; a "choose which fields" option wasn't asked for.

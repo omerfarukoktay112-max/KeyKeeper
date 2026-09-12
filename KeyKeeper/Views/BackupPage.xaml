@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
+             x:Class="KeyKeeper.Views.BackupPage"
+             x:DataType="viewmodels:BackupViewModel"
+             Title="Yedekleme">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label Text="Ana Parola" FontAttributes="Bold" />
+            <Entry Placeholder="Aşağıdaki her işlem için ana parolanızı girin"
+                   Text="{Binding MasterPassword}"
+                   IsPassword="True"
+                   IsEnabled="{Binding AreActionsEnabled}" />
+
+            <BoxView HeightRequest="1" Margin="0,4" />
+
+            <Label Text="Yedek Oluştur (.vault)" FontAttributes="Bold" />
+            <Label Text="Tüm kasanızın şifreli, taşınabilir bir kopyasını oluşturur." Style="{StaticResource SubHeadline}" />
+            <Button Text="Yedek Oluştur (.vault)" Command="{Binding ExportVaultCommand}" IsEnabled="{Binding AreActionsEnabled}" HorizontalOptions="Fill" />
+
+            <BoxView HeightRequest="1" Margin="0,4" />
+
+            <Label Text="Yedekten Geri Yükle" FontAttributes="Bold" />
+            <Label Text="Bir .vault dosyası seçin -- mevcut kasanızın tüm içeriği, dosyadakiyle DEĞİŞTİRİLİR." Style="{StaticResource SubHeadline}" />
+            <Button Text="Yedekten Geri Yükle" Command="{Binding ImportVaultCommand}" IsEnabled="{Binding AreActionsEnabled}" HorizontalOptions="Fill" />
+
+            <BoxView HeightRequest="1" Margin="0,4" />
+
+            <Label Text="CSV Olarak Dışa Aktar" FontAttributes="Bold" TextColor="Red" />
+            <Label Text="Tüm parolalarınız dahil, ŞİFRESİZ düz metin olarak dışa aktarır. Yalnızca gerektiğinde kullanın." Style="{StaticResource SubHeadline}" />
+            <Button Text="CSV Olarak Dışa Aktar (Uyarılı)" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding AreActionsEnabled}" BackgroundColor="Red" HorizontalOptions="Fill" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+            <Label Text="{Binding StatusMessage}" IsVisible="{Binding HasStatusMessage}" HorizontalTextAlignment="Center" />
+            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" HorizontalTextAlignment="Center" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -275,6 +275,9 @@ public sealed partial class VaultListViewModel : ObservableObject
     private static async Task OpenPasswordGeneratorAsync() => await Shell.Current.GoToAsync("password-generator");
 
     [RelayCommand]
+    private static async Task OpenBackupAsync() => await Shell.Current.GoToAsync("backup");
+
+    [RelayCommand]
     private async Task AddAsync()
     {
         string choice = await Shell.Current.DisplayActionSheetAsync(

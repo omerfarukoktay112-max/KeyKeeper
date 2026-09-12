@@ -1,0 +1,2 @@
+Type,Title,IsFavorite,FolderId,Tags,Username,Password,Url,TotpSecret,CardholderName,CardNumber,ExpiryMonth,ExpiryYear,Cvv,CardType,Ssid,WifiPassword,SecurityProtocol,IsHidden,NoteContent,LicenseKey,SoftwareName,ExpiresAtUtc
+Login,GitHub,false,50ffe883-4454-448d-87dd-23d3739fe2a3,onemli,octocat,ParolaGizli1https://github.com,https://github.com,,,,,,,,,,,,,,,

@@ -15,6 +15,7 @@ namespace KeyKeeper
             Routing.RegisterRoute("license-form", typeof(LicenseFormPage));
             Routing.RegisterRoute("folder-management", typeof(FolderManagementPage));
             Routing.RegisterRoute("password-generator", typeof(PasswordGeneratorPage));
+            Routing.RegisterRoute("backup", typeof(BackupPage));
         }
     }
 }

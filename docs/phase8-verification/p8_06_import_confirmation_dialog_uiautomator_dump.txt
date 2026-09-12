@@ -1,0 +1,4 @@
+text="Kasa Değiştirilecek"
+text="1 öğe, 1 klasör, 1 etiket içe aktarılacak. Mevcut kasanızın TÜM içeriği silinecek ve bunların yerine geçecek. Bu işlem GERİ ALINAMAZ."
+text="Vazgeç"
+text="İçe Aktar"

@@ -1,0 +1,4 @@
+text="Şifresiz Dışa Aktarım"
+text="Bu CSV dosyası tüm parolalarınızı ve diğer gizli bilgilerinizi ŞİFRESİZ, düz metin olarak içerecek. Dosya, kaydettiğiniz veya paylaştığınız her yerde güvensiz biçimde durabilir. Yine de devam etmek istiyor musunuz?"
+text="Vazgeç"
+text="Devam Et"

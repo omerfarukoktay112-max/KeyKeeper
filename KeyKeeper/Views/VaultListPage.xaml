@@ -10,6 +10,7 @@
         <ToolbarItem Text="Ekle" Command="{Binding AddCommand}" />
         <ToolbarItem Text="Klasörler" Command="{Binding ManageFoldersCommand}" />
         <ToolbarItem Text="Şifre Üret" Command="{Binding OpenPasswordGeneratorCommand}" />
+        <ToolbarItem Text="Yedekleme" Command="{Binding OpenBackupCommand}" />
         <ToolbarItem Text="Kilitle" Command="{Binding LockCommand}" />
     </ContentPage.ToolbarItems>
 
