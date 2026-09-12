@@ -231,6 +231,64 @@ public class VaultItemRepositoryTests
     }
 
     [Fact]
+    public void ListByFolder_ReturnsOnlyItemsDirectlyInThatFolder()
+    {
+        using Sut sut = CreateSut();
+        string folderId = CreateFolder(sut, "Work");
+        VaultItemRecord inFolder = sut.Repository.Create(new SecureNoteItem("In folder", "Content"), folderId: folderId);
+        sut.Repository.Create(new SecureNoteItem("Unfiled", "Content"));
+
+        IReadOnlyList<VaultItemRecord> items = sut.Repository.ListByFolder(folderId);
+
+        VaultItemRecord onlyItem = Assert.Single(items);
+        Assert.Equal(inFolder.Id, onlyItem.Id);
+    }
+
+    [Fact]
+    public void ListByFolder_Null_ReturnsOnlyUnfiledItems()
+    {
+        using Sut sut = CreateSut();
+        string folderId = CreateFolder(sut, "Work");
+        sut.Repository.Create(new SecureNoteItem("In folder", "Content"), folderId: folderId);
+        VaultItemRecord unfiled = sut.Repository.Create(new SecureNoteItem("Unfiled", "Content"));
+
+        IReadOnlyList<VaultItemRecord> items = sut.Repository.ListByFolder(null);
+
+        VaultItemRecord onlyItem = Assert.Single(items);
+        Assert.Equal(unfiled.Id, onlyItem.Id);
+    }
+
+    [Fact]
+    public void ListByTag_ReturnsOnlyItemsTaggedWithIt()
+    {
+        using Sut sut = CreateSut();
+        VaultItemRecord tagged = sut.Repository.Create(new SecureNoteItem("Tagged", "Content"));
+        sut.Repository.Create(new SecureNoteItem("Untagged", "Content"));
+        sut.Repository.AddTag(tagged.Id, "Work");
+        string tagId = sut.Database.GetOpenConnectionOrThrow()
+            .ExecuteScalar<string>("SELECT Id FROM Tags WHERE Name = ?;", "Work");
+
+        IReadOnlyList<VaultItemRecord> items = sut.Repository.ListByTag(tagId);
+
+        VaultItemRecord onlyItem = Assert.Single(items);
+        Assert.Equal(tagged.Id, onlyItem.Id);
+    }
+
+    [Fact]
+    public void ListFavorites_ReturnsOnlyFavoritedItems()
+    {
+        using Sut sut = CreateSut();
+        VaultItemRecord favorite = sut.Repository.Create(new SecureNoteItem("Favorite", "Content"));
+        sut.Repository.SetFavorite(favorite.Id, true);
+        sut.Repository.Create(new SecureNoteItem("Not favorite", "Content"));
+
+        IReadOnlyList<VaultItemRecord> items = sut.Repository.ListFavorites();
+
+        VaultItemRecord onlyItem = Assert.Single(items);
+        Assert.Equal(favorite.Id, onlyItem.Id);
+    }
+
+    [Fact]
     public void Update_ReplacesThePayloadAndBumpsUpdatedAtUtc()
     {
         using Sut sut = CreateSut();
@@ -322,15 +380,12 @@ public class VaultItemRepositoryTests
         Assert.Null(sut.Repository.Get(created.Id)!.FolderId);
     }
 
-    /// <summary>No folder-management repository exists yet this phase (deliberately -- folder
-    /// creation UI is explicitly out of scope), so tests that need a real <c>Folders</c> row to
-    /// satisfy <c>VaultItems.FolderId</c>'s foreign key insert one directly.</summary>
-    private static string CreateFolder(Sut sut, string name)
-    {
-        string id = Guid.NewGuid().ToString();
-        sut.Database.GetOpenConnectionOrThrow().Execute("INSERT INTO Folders (Id, Name) VALUES (?, ?);", id, name);
-        return id;
-    }
+    /// <summary>Tests here only need a real <c>Folders</c> row to satisfy
+    /// <c>VaultItems.FolderId</c>'s foreign key -- <see cref="FolderRepository"/> (added
+    /// Phase 5) is the real way to create one; its own CRUD/nesting/cascade-delete behavior has
+    /// its own test file, <c>FolderRepositoryTests</c>.</summary>
+    private static string CreateFolder(Sut sut, string name) =>
+        new FolderRepository(sut.Database).Create(name).Id;
 
     [Fact]
     public void AddTag_ThenGet_IncludesTheTag()

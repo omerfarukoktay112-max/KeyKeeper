@@ -7,7 +7,7 @@ namespace KeyKeeper.ViewModels;
 
 public sealed partial class LoginFormViewModel : VaultItemFormViewModelBase<LoginItem>
 {
-    public LoginFormViewModel(IVaultItemRepository repository) : base(repository)
+    public LoginFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
     {
     }
 

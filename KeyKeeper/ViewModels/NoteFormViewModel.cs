@@ -8,7 +8,7 @@ namespace KeyKeeper.ViewModels;
 /// why: the whole note is the secret, there's no single field to single out.</summary>
 public sealed partial class NoteFormViewModel : VaultItemFormViewModelBase<SecureNoteItem>
 {
-    public NoteFormViewModel(IVaultItemRepository repository) : base(repository)
+    public NoteFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
     {
     }
 

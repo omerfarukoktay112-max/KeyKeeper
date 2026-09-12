@@ -1,10 +1,17 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Services;
 
 namespace KeyKeeper.ViewModels;
+
+/// <summary>One entry in a form's folder <c>Picker</c> -- <see cref="Id"/> of <c>null</c> is the
+/// always-present "Klasörsüz" (unfiled) option; every other entry is a real folder, indented per
+/// <see cref="FolderTreeFlattener"/> to show nesting in a flat Picker list.</summary>
+public sealed record FolderPickerOption(string? Id, string DisplayName);
 
 /// <summary>
 /// Shared add/edit/view logic for all five vault item forms (<see cref="LoginFormViewModel"/>,
@@ -20,15 +27,28 @@ namespace KeyKeeper.ViewModels;
 /// <see cref="Save"/> can call <see cref="IVaultItemRepository.Create{TPayload}"/>/
 /// <see cref="IVaultItemRepository.Update{TPayload}"/> directly, with the compiler (not a runtime
 /// switch) guaranteeing the payload this page builds matches the item type it's the form for.
+///
+/// Folder/tag assignment (Phase 5) lives here, not in the typed payload -- <see cref="IVaultItemRepository.SetFolder"/>/
+/// <see cref="IVaultItemRepository.AddTag"/>/<see cref="IVaultItemRepository.RemoveTag"/> are
+/// separate calls from <see cref="Create{TPayload}"/>'s/<see cref="Update{TPayload}"/>'s payload
+/// write, so <see cref="Save"/> makes them as extra steps: <see cref="SelectedFolderOption"/>'s id
+/// is passed straight into <c>Create</c> for a new item, or applied via <c>SetFolder</c>
+/// unconditionally after <c>Update</c> for an existing one (idempotent either way, simpler than
+/// tracking whether it actually changed); <see cref="Tags"/> is diffed against the snapshot
+/// <see cref="Initialize"/> loaded, so only the tags actually added/removed since then trigger a
+/// call, not every tag on every save.
 /// </summary>
 public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableObject
     where TPayload : IVaultItemPayload
 {
     protected readonly IVaultItemRepository Repository;
+    private readonly IFolderRepository _folders;
+    private HashSet<string> _originalTags = [];
 
-    protected VaultItemFormViewModelBase(IVaultItemRepository repository)
+    protected VaultItemFormViewModelBase(IVaultItemRepository repository, IFolderRepository folders)
     {
         Repository = repository;
+        _folders = folders;
     }
 
     /// <summary>Set by the page from Shell navigation query parameters before <see cref="Initialize"/>
@@ -48,6 +68,20 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
+    public ObservableCollection<FolderPickerOption> FolderOptions { get; } = [];
+
+    [ObservableProperty]
+    private FolderPickerOption? selectedFolderOption;
+
+    public ObservableCollection<string> Tags { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddTag))]
+    [NotifyCanExecuteChangedFor(nameof(AddTagCommand))]
+    private string? newTagText;
+
+    public bool CanAddTag => !string.IsNullOrWhiteSpace(NewTagText) && !Tags.Contains(NewTagText, StringComparer.Ordinal);
+
     /// <summary>Raised after a successful create/update so the page can navigate back.</summary>
     public event Action? Saved;
 
@@ -61,24 +95,71 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
     protected abstract void LoadFromPayload(TPayload payload);
 
     /// <summary>Call once <see cref="ItemId"/> is known (from the page's <c>ApplyQueryAttributes</c>)
-    /// — loads and decrypts the existing item in edit mode; a no-op in create mode.</summary>
+    /// — loads folder options in both modes; loads and decrypts the existing item, its folder, and
+    /// its tags in edit mode; a no-op beyond folder options in create mode.
+    ///
+    /// Guarded against a locked vault the same way as <c>FolderManagementViewModel</c>'s commands
+    /// (see its <c>TryRun</c> doc comment) -- the inactivity timer can fire between this page
+    /// being navigated to and this method actually running, and a repository call against a
+    /// locked vault throws rather than returning empty. <c>App.xaml.cs</c>'s central
+    /// <c>Locked</c> subscriber is already navigating away in that case, so this just needs to
+    /// not crash in the meantime, not show a useful error.</summary>
     public void Initialize()
     {
-        if (ItemId is null)
+        try
         {
-            return;
-        }
+            LoadFolderOptions();
 
-        VaultItemRecord? record = Repository.Get(ItemId);
-        if (record?.Payload is TPayload payload)
-        {
-            LoadFromPayload(payload);
+            if (ItemId is null)
+            {
+                return;
+            }
+
+            VaultItemRecord? record = Repository.Get(ItemId);
+            if (record?.Payload is TPayload payload)
+            {
+                LoadFromPayload(payload);
+                SelectedFolderOption = FolderOptions.FirstOrDefault(o => o.Id == record.FolderId) ?? FolderOptions[0];
+                _originalTags = record.Tags.ToHashSet(StringComparer.Ordinal);
+                Tags.Clear();
+                foreach (string tag in record.Tags)
+                {
+                    Tags.Add(tag);
+                }
+            }
+            else
+            {
+                ErrorMessage = "Öğe bulunamadı.";
+            }
         }
-        else
+        catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
         {
-            ErrorMessage = "Öğe bulunamadı.";
+            // Vault locked out from under this call; the central Locked subscriber is already
+            // navigating to the lock screen.
         }
     }
+
+    private void LoadFolderOptions()
+    {
+        FolderOptions.Clear();
+        FolderOptions.Add(new FolderPickerOption(null, "Klasörsüz"));
+        foreach (IndentedFolder folder in FolderTreeFlattener.Flatten(_folders.ListAll()))
+        {
+            FolderOptions.Add(new FolderPickerOption(folder.Id, folder.DisplayName));
+        }
+
+        SelectedFolderOption ??= FolderOptions[0];
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAddTag))]
+    private void AddTag()
+    {
+        Tags.Add(NewTagText!);
+        NewTagText = null;
+    }
+
+    [RelayCommand]
+    private void RemoveTag(string tag) => Tags.Remove(tag);
 
     [RelayCommand]
     private void Save()
@@ -95,15 +176,19 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
         IsBusy = true;
         try
         {
+            string id;
             if (ItemId is null)
             {
-                Repository.Create(payload);
+                id = Repository.Create(payload, SelectedFolderOption?.Id).Id;
             }
             else
             {
-                Repository.Update(ItemId, payload);
+                id = ItemId;
+                Repository.Update(id, payload);
+                Repository.SetFolder(id, SelectedFolderOption?.Id);
             }
 
+            ApplyTagChanges(id);
             Saved?.Invoke();
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException or VaultCryptographyException)
@@ -116,6 +201,20 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
         }
     }
 
+    private void ApplyTagChanges(string id)
+    {
+        var current = Tags.ToHashSet(StringComparer.Ordinal);
+        foreach (string removed in _originalTags.Except(current))
+        {
+            Repository.RemoveTag(id, removed);
+        }
+
+        foreach (string added in current.Except(_originalTags))
+        {
+            Repository.AddTag(id, added);
+        }
+    }
+
     [RelayCommand]
     private void Delete()
     {
@@ -124,7 +223,16 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
             return;
         }
 
-        Repository.Delete(ItemId);
+        try
+        {
+            Repository.Delete(ItemId);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
+        {
+            ErrorMessage = "Kasa kilitlendi. Lütfen tekrar açıp deneyin.";
+            return;
+        }
+
         Deleted?.Invoke();
     }
 }

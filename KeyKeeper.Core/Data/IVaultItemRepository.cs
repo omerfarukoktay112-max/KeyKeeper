@@ -30,6 +30,19 @@ public interface IVaultItemRepository
     /// decrypted, newest-updated first.</summary>
     IReadOnlyList<VaultItemRecord> List(VaultItemType? type = null);
 
+    /// <summary>Returns every item directly inside <paramref name="folderId"/>, decrypted,
+    /// newest-updated first. <paramref name="folderId"/> of <c>null</c> means unfiled items
+    /// (<c>FolderId IS NULL</c>) -- the same convention <see cref="SetFolder"/> uses -- not "every
+    /// item regardless of folder"; use <see cref="List"/> for that.</summary>
+    IReadOnlyList<VaultItemRecord> ListByFolder(string? folderId);
+
+    /// <summary>Returns every item tagged with <paramref name="tagId"/>, decrypted,
+    /// newest-updated first.</summary>
+    IReadOnlyList<VaultItemRecord> ListByTag(string tagId);
+
+    /// <summary>Returns every favorited item, decrypted, newest-updated first.</summary>
+    IReadOnlyList<VaultItemRecord> ListFavorites();
+
     /// <summary>Re-encrypts and replaces an existing item's payload (its folder/favorite/tags
     /// are untouched). <paramref name="payload"/>'s <see cref="IVaultItemPayload.ItemType"/> must
     /// match the item's existing, immutable type.</summary>

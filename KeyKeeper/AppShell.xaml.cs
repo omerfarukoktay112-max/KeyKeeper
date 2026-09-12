@@ -13,6 +13,7 @@ namespace KeyKeeper
             Routing.RegisterRoute("wifi-form", typeof(WifiFormPage));
             Routing.RegisterRoute("note-form", typeof(NoteFormPage));
             Routing.RegisterRoute("license-form", typeof(LicenseFormPage));
+            Routing.RegisterRoute("folder-management", typeof(FolderManagementPage));
         }
     }
 }

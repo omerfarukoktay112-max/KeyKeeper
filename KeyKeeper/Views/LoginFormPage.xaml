@@ -24,6 +24,30 @@
                 <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleTotpSecretVisibilityCommand}" />
             </Grid>
 
+            <Picker Title="Klasör" ItemsSource="{Binding FolderOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedFolderOption}" />
+
+            <Label Text="Etiketler" FontAttributes="Bold" />
+            <FlexLayout BindableLayout.ItemsSource="{Binding Tags}" Wrap="Wrap" Direction="Row" JustifyContent="Start">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <Border Padding="10,4" Margin="0,0,6,6" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource Gray200}">
+                            <HorizontalStackLayout Spacing="6">
+                                <Label Text="{Binding .}" VerticalOptions="Center" />
+                                <Label Text="✕" VerticalOptions="Center" TextColor="Red">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding BindingContext.RemoveTagCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" />
+                                    </Label.GestureRecognizers>
+                                </Label>
+                            </HorizontalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Entry Grid.Column="0" Placeholder="Yeni etiket" Text="{Binding NewTagText}" />
+                <Button Grid.Column="1" Text="Ekle" Command="{Binding AddTagCommand}" />
+            </Grid>
+
             <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />

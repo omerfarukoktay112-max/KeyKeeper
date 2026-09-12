@@ -8,12 +8,65 @@
 
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="Ekle" Command="{Binding AddCommand}" />
+        <ToolbarItem Text="Klasörler" Command="{Binding ManageFoldersCommand}" />
         <ToolbarItem Text="Kilitle" Command="{Binding LockCommand}" />
     </ContentPage.ToolbarItems>
 
     <Grid RowDefinitions="Auto,*" Padding="0">
 
         <VerticalStackLayout Grid.Row="0" Padding="20,12" Spacing="8">
+
+            <SearchBar Placeholder="Ara (isim, kullanıcı adı, URL...)" Text="{Binding SearchText}" />
+
+            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding FolderFilterOptions}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="viewmodels:FolderFilterOptionViewModel">
+                            <Border Padding="12,6" StrokeShape="RoundRectangle 16" BackgroundColor="{StaticResource Gray200}">
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding BindingContext.SelectFolderFilterCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                        CommandParameter="{Binding .}" />
+                                </Border.GestureRecognizers>
+                                <Label Text="{Binding DisplayName}" VerticalOptions="Center" />
+                            </Border>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </HorizontalStackLayout>
+            </ScrollView>
+
+            <FlexLayout
+                BindableLayout.ItemsSource="{Binding TagChips}"
+                Wrap="Wrap" Direction="Row" JustifyContent="Start">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="viewmodels:TagChipViewModel">
+                        <Border Padding="10,6" Margin="0,0,6,6" StrokeShape="RoundRectangle 14" BackgroundColor="{StaticResource Gray200}">
+                            <Border.Triggers>
+                                <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                                </DataTrigger>
+                            </Border.Triggers>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding BindingContext.ToggleTagFilterCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}"
+                                    CommandParameter="{Binding .}" />
+                            </Border.GestureRecognizers>
+                            <Label Text="{Binding Name}" VerticalOptions="Center" />
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </FlexLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Switch IsToggled="{Binding FavoritesOnly}" />
+                <Label Text="Yalnızca favoriler" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
             <Button
                 Text="Biyometrik Kilidi Etkinleştir"
                 Command="{Binding EnableBiometricUnlockCommand}"
@@ -43,7 +96,7 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:VaultItemListEntry">
-                    <Grid Padding="16,12" ColumnDefinitions="48,*" ColumnSpacing="14">
+                    <Grid Padding="16,12" ColumnDefinitions="48,*,40" ColumnSpacing="14">
                         <Grid.GestureRecognizers>
                             <TapGestureRecognizer
                                 Command="{Binding BindingContext.OpenCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
@@ -68,6 +121,26 @@
                             <Label Text="{Binding Title}" FontAttributes="Bold" />
                             <Label Text="{Binding Subtitle}" Style="{StaticResource SubHeadline}" FontSize="13" />
                         </VerticalStackLayout>
+
+                        <Label
+                            Grid.Column="2"
+                            FontSize="22"
+                            VerticalOptions="Center"
+                            HorizontalOptions="Center">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="True">
+                                    <Setter Property="Text" Value="⭐" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="False">
+                                    <Setter Property="Text" Value="☆" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                            <Label.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding BindingContext.ToggleFavoriteCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
+                                    CommandParameter="{Binding .}" />
+                            </Label.GestureRecognizers>
+                        </Label>
                     </Grid>
                 </DataTemplate>
             </CollectionView.ItemTemplate>

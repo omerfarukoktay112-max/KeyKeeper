@@ -12,7 +12,7 @@ public sealed partial class CardFormViewModel : VaultItemFormViewModelBase<CardI
     /// <see cref="CardTypeIndex"/> casts directly between them instead of doing a lookup.</summary>
     public static readonly string[] CardTypeOptions = ["Visa", "Mastercard", "American Express", "Discover", "Diğer"];
 
-    public CardFormViewModel(IVaultItemRepository repository) : base(repository)
+    public CardFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
     {
     }
 

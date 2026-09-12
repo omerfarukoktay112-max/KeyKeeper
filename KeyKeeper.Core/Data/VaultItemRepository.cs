@@ -75,6 +75,40 @@ public sealed class VaultItemRepository : IVaultItemRepository
         return rows.Select(row => ToRecord(connection, row)).ToList();
     }
 
+    public IReadOnlyList<VaultItemRecord> ListByFolder(string? folderId)
+    {
+        SQLiteConnection connection = _vaultDatabase.GetOpenConnectionOrThrow();
+        List<ItemRow> rows = folderId is null
+            ? connection.Query<ItemRow>("SELECT * FROM VaultItems WHERE FolderId IS NULL ORDER BY UpdatedAtUtc DESC;")
+            : connection.Query<ItemRow>("SELECT * FROM VaultItems WHERE FolderId = ? ORDER BY UpdatedAtUtc DESC;", folderId);
+
+        return rows.Select(row => ToRecord(connection, row)).ToList();
+    }
+
+    public IReadOnlyList<VaultItemRecord> ListByTag(string tagId)
+    {
+        ArgumentNullException.ThrowIfNull(tagId);
+
+        SQLiteConnection connection = _vaultDatabase.GetOpenConnectionOrThrow();
+        List<ItemRow> rows = connection.Query<ItemRow>(
+            """
+            SELECT vi.* FROM VaultItems vi
+            JOIN ItemTags it ON it.ItemId = vi.Id
+            WHERE it.TagId = ?
+            ORDER BY vi.UpdatedAtUtc DESC;
+            """,
+            tagId);
+
+        return rows.Select(row => ToRecord(connection, row)).ToList();
+    }
+
+    public IReadOnlyList<VaultItemRecord> ListFavorites()
+    {
+        SQLiteConnection connection = _vaultDatabase.GetOpenConnectionOrThrow();
+        List<ItemRow> rows = connection.Query<ItemRow>("SELECT * FROM VaultItems WHERE IsFavorite = 1 ORDER BY UpdatedAtUtc DESC;");
+        return rows.Select(row => ToRecord(connection, row)).ToList();
+    }
+
     public VaultItemRecord Update<TPayload>(string id, TPayload payload)
         where TPayload : IVaultItemPayload
     {

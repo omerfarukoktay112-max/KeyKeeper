@@ -7,16 +7,17 @@ Offline-first, zero-knowledge, hardware-backed password/data vault for Android a
 ```
 KeyKeeper.slnx
 ├── KeyKeeper/              # .NET MAUI app (net10.0-android, net10.0-ios)
+│   ├── Behaviors/            # PageActivityBehavior — app-wide inactivity-timer activity reporting (post-Phase-4 fix — done)
 │   ├── Data/                # (empty — Data/ is now KeyKeeper.Core/Data, see below)
-│   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore
-│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel + 5 item form ViewModels (Phase 3/4 UI — done)
-│   ├── Views/                # SetupPage, LockPage, VaultListPage + 5 item form pages (Phase 3/4 UI — done)
+│   ├── Services/            # Platform glue: MauiVaultStoragePathProvider, MauiSecureKeyValueStore, FolderTreeFlattener (Phase 5 — done)
+│   ├── ViewModels/          # SetupViewModel, LockViewModel, VaultListViewModel, FolderManagementViewModel + 5 item form ViewModels (Phase 3/4/5 UI — done)
+│   ├── Views/                # SetupPage, LockPage, VaultListPage, FolderManagementPage + 5 item form pages (Phase 3/4/5 UI — done)
 │   ├── Resources/            # Standard MAUI resource structure (AppIcon, Fonts, Images, Raw, Splash, Styles)
 │   └── Platforms/            # Platform-specific entry points (Android/, iOS/) — includes BiometricAuthService.cs per platform
 ├── KeyKeeper.Core/          # Plain net10.0 class library — pure logic, no MAUI/UI/platform references
 │   ├── Auth/                  # Unlock/lock orchestration, lockout policy, inactivity timer (Phase 3 — done)
 │   ├── Crypto/               # Key derivation, encryption, master-password verification (Phase 1 — done)
-│   ├── Data/                 # Vault schema, SQLCipher connection service, migrations, unlock-metadata store, item repository (Phase 2/4 — done)
+│   ├── Data/                 # Vault schema, SQLCipher connection service, migrations, unlock-metadata store, item/folder/tag repositories, search-text builder (Phase 2/4/5 — done)
 │   ├── Storage/               # Wrapped-key storage abstraction for biometric unlock (Phase 2 — done)
 │   └── Models/               # Vault item domain models: LoginItem, CardItem, WifiItem, SecureNoteItem, LicenseItem (Phase 4 — done)
 └── KeyKeeper.Core.Tests/    # xUnit tests for KeyKeeper.Core (net10.0)
@@ -67,7 +68,7 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 ### Build status
 
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
-  `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4).
+  `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of Phase 5).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -1034,11 +1035,255 @@ Confirmed locked afterward — `Kasa Kilitli` / the master-password prompt shown
 (`06-idle-then-locked.png`) — proving this fix didn't accidentally disable the auto-lock itself,
 only its false-positive firing during active use.
 
-## Explicitly out of scope so far
+## Phase 5: Organization & search (`KeyKeeper.Core/Data`, `KeyKeeper/ViewModels`, `KeyKeeper/Views`, `KeyKeeper/Services`)
 
-- Folder/tag management UI and search/filtering (Phase 5) — `IVaultItemRepository` already
-  supports favorite/folder/tag CRUD (Phase 4); only the UI for it is deferred. `VaultListPage`
-  shows a flat, unfiltered, newest-first list of every item.
+Turns the `Folders`/`Tags`/`ItemTags` tables (schema-only since Phase 2) and the `IsFavorite`
+flag/`SetFavorite` method (added but never called by any UI since Phase 4) into real,
+UI-reachable features: folder create/rename/delete with nesting, tag create/rename/delete/cleanup,
+folder/tag/favorite filtering, and in-memory search — plus a star toggle, since Phase 4 added
+`IsFavorite` but nothing ever *set* it.
+
+### `IFolderRepository` / `FolderRepository` — the delete-cascade decision
+
+Create (optionally nested via `parentFolderId`), rename, delete, `ListAll()` (flat; every caller
+that needs a tree builds it from `ParentFolderId` itself — see `FolderTreeFlattener` below).
+
+The interesting design question — what happens to a folder's contents when it's deleted — was
+already answered by Phase 2's schema, not something this phase had to decide fresh:
+`Folders.ParentFolderId` is `ON DELETE CASCADE` (deleting a folder cascades to delete every
+descendant folder too) while `VaultItems.FolderId` is `ON DELETE SET NULL` (an item directly
+inside a deleted folder, or inside one of its cascade-deleted descendants, becomes unfiled — never
+deleted, never blocking the delete). `FolderRepository.Delete` is therefore a single
+`DELETE FROM Folders WHERE Id = ?` — SQLite's own foreign-key enforcement (`PRAGMA foreign_keys =
+ON`, set once in `VaultDatabaseService`) does the rest. The reasoning, stated once here since nothing
+in Phase 2 had a reason to say it yet: a folder is organizational metadata; an item is data the
+user typed a master password to protect. Deleting the former must never destroy or hold hostage
+the latter — so unfiling beats both deleting the item and blocking the folder delete until the
+user manually relocates it. Verified directly (`FolderRepositoryTests`: deleting a parent orphans
+items several folders deep, not just directly inside it) and end-to-end in the real UI (see Manual
+verification below).
+
+### `ITagRepository` / `TagRepository` — split responsibility from `IVaultItemRepository`
+
+Tag *entity* CRUD (create, rename, delete outright, `DeleteUnused` cleanup) — deliberately not
+overlapping `IVaultItemRepository.AddTag`/`RemoveTag` (Phase 4), which already own the item-tag
+*association* (tagging an item, creating the tag on demand if it's new) and are untouched here.
+`Create` exists so a "manage tags" UI could pre-create a tag before attaching it to anything;
+`Delete` relies on `ItemTags.TagId`'s `ON DELETE CASCADE` to remove it from every item that had it
+in one statement, same pattern as the folder cascade above.
+
+No dedicated tag-management screen this phase (unlike folders) — tags are created inline from
+each item form's "Yeni etiket" field (see below); `ITagRepository` exists for completeness and
+`DeleteUnused` and is exercised entirely through its own tests, not new UI.
+
+### `IVaultItemRepository` additions — `ListByFolder`/`ListByTag`/`ListFavorites`
+
+Three focused methods, not one combined query API: `ListByFolder(string? folderId)` (`null` means
+unfiled, matching `SetFolder`'s existing convention — not "every item"), `ListByTag(string tagId)`,
+`ListFavorites()`. Each is independently correct and independently tested
+(`VaultItemRepositoryTests`), but `VaultListViewModel` does not call them per filter change — see
+its own doc comment for why (folder + tags + favorites-only + search text can all be active
+simultaneously, which a repository call per criterion can't express without either a combinatorial
+method explosion or a bespoke query-object API neither this phase's scope called for). The
+ViewModel instead loads the full list once, as Phase 4 already did, and filters the in-memory
+`VaultItemListEntry` collection client-side — exactly what in-memory search also requires, so one
+mechanism serves both needs.
+
+### `VaultItemSearchText` — the search-safety boundary, made unit-testable
+
+A pure static function, `KeyKeeper.Core.Data.VaultItemSearchText.Build(VaultItemType, object)`,
+building the exact text an item is searchable by: title plus a few non-secret descriptive fields
+per type (username/URL for a login, cardholder name/card brand for a card, SSID for Wi-Fi,
+software name for a license) — never a payload's actual secret field (password, CVV, license key,
+Wi-Fi password) and never `SecureNoteItem.Content` either, on the same reasoning the list view
+already masks a note's subtitle to the literal "Güvenli not": search runs over the already-
+decrypted in-memory list the UI holds for display anyway, so nothing here decrypts anything extra
+— but if the searchable set ever grew to include a secret field, every keystroke while searching
+would linger that field's plaintext through a filtered results list far more casually than the
+deliberate per-field "Göster" reveal toggle each form already requires before showing it at all.
+
+Kept in `KeyKeeper.Core`, not the MAUI head project's `VaultItemListEntry` (its only caller),
+specifically so this exact claim is unit-testable without a UI test harness — see
+`VaultItemSearchTextTests`, which asserts both halves for every item type: the safe fields *are*
+included, and the secret field explicitly is *not*.
+
+### `FolderTreeFlattener` (`KeyKeeper/Services`) — shared indentation, not a real tree control
+
+`IFolderRepository.ListAll()` returns a flat, parent-referencing list; MAUI has no built-in
+TreeView, and a handful of folders in a personal vault doesn't warrant building one. `Flatten`
+turns the flat list into a depth-first, indented display order (`IndentedFolder` — id, name,
+depth; `DisplayName` prefixes `"— "` once per depth) shared by every place that shows the folder
+hierarchy: `VaultListPage`'s filter row, `FolderManagementPage`'s list, and every item form's
+folder picker.
+
+**Bug found and fixed here during this phase's own manual verification**: the first
+implementation grouped folders by `ParentFolderId` into a `Dictionary<string?, ...>` and looked up
+root folders (`ParentFolderId == null`) via `TryGetValue(null, ...)`. This throws
+`ArgumentNullException` unconditionally — a `Dictionary` with a reference-type key rejects `null`
+at every call site regardless of the key type's nullable annotation (`string?` is a compile-time
+hint only; nullable annotations don't change `Dictionary`'s runtime null-key behavior). Because
+this ran on *every* call, with or without any folders existing yet, it broke two things
+simultaneously the moment this phase's UI was first driven on the emulator: `VaultListViewModel.Load()`
+threw partway through (silently, since `OnAppearing` calls it via `_ = InitializeAsync()`,
+fire-and-forget) so the item list rendered as a permanently empty `CollectionView` with no
+items *and* no empty-state message either (`IsEmpty` never got the chance to become `true`); and
+navigating into any item form crashed the app outright, since there `Initialize()` runs
+synchronously inside an *awaited* `GoToAsync` chain where the same exception isn't silently
+swallowed. Fixed by computing root folders as their own list (`Where(f => f.ParentFolderId is
+null)`) instead of a dictionary lookup keyed by `null`, so the dictionary only ever holds keys for
+folders that are themselves a parent — never `null`. This single bug is *why* several of the
+manual-verification screenshots below needed a second pass to actually show data.
+
+### UI — `VaultListPage` filters, `FolderManagementPage`, per-form folder/tag fields
+
+`VaultListPage` gained, above the item list: a `SearchBar` (bound to `VaultListViewModel.SearchText`);
+a horizontally-scrolling row of folder filter chips (`FolderFilterOptionViewModel` — "Tümü" /
+"Klasörsüz" always first, then every real folder via `FolderTreeFlattener`, single-select); a
+wrapping row of tag filter chips (`TagChipViewModel`, multi-select, OR'ed together); a "Yalnızca
+favoriler" `Switch`; and a star (`⭐`/`☆`) on each row toggling `IsFavorite` via
+`ToggleFavoriteCommand` — the only place `IVaultItemRepository.SetFavorite` is actually called
+from, closing the Phase 4 gap where the flag existed with nothing to ever set it.
+
+**Both filter chip rows use `BindableLayout` inside a plain layout, not a second `CollectionView`**
+— a deliberate choice, not the original one. The first implementation put the folder-filter chips
+in their own `CollectionView` (`SelectionMode="Single"`, two-way-bound `SelectedItem`) alongside
+the pre-existing item-list `CollectionView` lower on the same page. Two `CollectionView`s on one
+Android page turned out to be exactly the conditions for a known class of MAUI/Android rendering
+bug: the second `CollectionView` silently rendered zero items regardless of its `ItemsSource`'s
+actual contents (compounding the `FolderTreeFlattener` bug above — even after fixing that, this
+issue remained until traced separately). Replaced with a `ScrollView` + `HorizontalStackLayout` +
+`BindableLayout.ItemsSource`, single-select handled explicitly via a `SelectFolderFilterCommand`
+that flips one `FolderFilterOptionViewModel.IsSelected` at a time — the same rendering approach the
+tag chips already used successfully. Filtering logic itself (folder + tags + favorites-only +
+search, all AND'ed, tags OR'ed among themselves) lives in `VaultListViewModel.ApplyFilters`.
+
+`FolderManagementPage` (routed as `"folder-management"`, reached via `VaultListPage`'s new
+"Klasörler" toolbar item): create a folder (name + parent picker), and per-row "Yeniden Adlandır"
+(`Shell.Current.DisplayPromptAsync`) / "Sil" (`DisplayAlert` confirmation, wording the folder's
+own delete semantics explicitly: contents become unfiled, not deleted) — both native dialogs
+called directly from `FolderManagementViewModel`, the same "ViewModel calls `Shell.Current`
+directly for a lightweight dialog" precedent `VaultListViewModel.AddAsync` already set with
+`DisplayActionSheetAsync` in Phase 4. Deliberately this simple: no inline-editable tree, no
+drag-to-reparent — more UI investment than "basit bir yönetim ekranı" called for.
+
+Each of the five item forms (`VaultItemFormViewModelBase<TPayload>`, shared base) gained a folder
+`Picker` (`FolderOptions`/`SelectedFolderOption`, "Klasörsüz" always first) and a tag section: a
+`FlexLayout` of removable tag chips (`Tags`) plus a "Yeni etiket" `Entry` + "Ekle" button
+(`AddTagCommand`, disabled via `CanAddTag` while the field is blank or duplicates an existing
+chip). `Initialize()` now also loads folder options in both modes and, in edit mode, the item's
+current folder and tag snapshot; `Save()` passes the selected folder straight into `Create` for a
+new item or applies it via `SetFolder` unconditionally after `Update` for an existing one (simpler
+than tracking whether it changed), and diffs `Tags` against the snapshot to call `AddTag`/`RemoveTag`
+only for what actually changed.
+
+### Second bug found and fixed here: unguarded repository calls crash the app on a lock race
+
+Distinct from the `FolderTreeFlattener` bug above, found while manually testing folder deletion:
+`FolderManagementViewModel`'s commands (and `VaultListViewModel.Load`/`ToggleFavorite`,
+and `VaultItemFormViewModelBase.Initialize`/`Delete`) called their repository methods with no
+guard against the vault having locked out from under them. This is a real, reachable race, not a
+theoretical one: `RenameAsync`'s prompt and `DeleteAsync`'s confirmation are *native* OS dialogs,
+outside this page's own visual tree, so `Behaviors/PageActivityBehavior` (the post-Phase-4
+inactivity-timer fix) can't see interaction with them — the countdown keeps running underneath a
+dialog the user is actively reading. Confirming a folder deletion after the vault happened to
+auto-lock in the background threw `System.InvalidOperationException: The vault database is not
+open.` on the very next repository call, uncaught, crashing the app (`FATAL EXCEPTION: main`) —
+reproduced for real on-device, not just reasoned about. Fixed by wrapping every such call in a
+try/catch for `InvalidOperationException`/`VaultDatabaseException` that no-ops (or sets
+`ErrorMessage` where a command already had one, like `FolderManagementViewModel`'s `TryRun`
+helper): `App.xaml.cs`'s central `IAuthenticationService.Locked` subscriber is already navigating
+to the lock screen the moment the real lock fires, so these guards only need to survive the race,
+not handle it themselves.
+
+### Manual verification — Android emulator
+
+Driven on the same running `pixel_7_-_api_36_0` emulator as prior phases, via `adb shell input`/
+`uiautomator dump`. Screenshots checked into `docs/phase5-verification/`.
+
+**Nested folders**: created a root folder "Finans" (`03-root-folder-created.png`), then a child
+folder "Kartlar" under it via the parent picker (`04-nested-folder-created.png`, showing "Finans"
+and indented "— Kartlar" in the same list) — confirming `FolderTreeFlattener`'s depth-first,
+indented ordering matches the real parent-child relationship, not just the creation order.
+
+**Assigning an item to a folder and tagging it**: opened "Ev WiFi", set its folder to "— Kartlar",
+added a new tag "onemli" via the inline entry, saved (`05-item-with-folder-and-tag-saved.png` —
+the new "onemli" chip now appears in `VaultListPage`'s tag filter row, proving a tag created this
+way is immediately visible to `ITagRepository.ListAll()`, not just locally to the form).
+
+**Folder filtering**: selecting the "— Kartlar" chip narrowed the list to exactly "Ev WiFi"
+(`06-folder-filter-working.png`), the other four items (including the ones with no folder at all)
+correctly excluded.
+
+**Tag filtering, and combined-filter AND logic**: selecting the "onemli" chip alone also narrowed
+the list to "Ev WiFi" (`07-tag-filter-working.png`). With "onemli" still selected, marking "GitHub"
+as a favorite (see below) and then also enabling "Yalnızca favoriler" showed **zero** items
+(`11-favorites-filter-AND-tag-filter.png`) — GitHub is a favorite but isn't tagged "onemli", and
+"Ev WiFi" is tagged "onemli" but isn't a favorite — correctly proving the active filters combine
+with AND, not OR.
+
+**Search, including the security-critical negative case**: searching "github" correctly matched
+only the GitHub login item on its title (`08-search-matches-username.png`). Searching the *exact
+password* stored on that same item, `S3cretPass`, returned **zero** results —
+`09-search-excludes-password-SECURITY.png` shows the search box containing exactly that string
+with the empty-state message showing, not the GitHub item — direct, on-device confirmation that
+`VaultItemSearchText` genuinely excludes secret fields at runtime, not just in its unit tests.
+
+**Favoriting**: tapping the star on the GitHub row filled it in gold immediately, without also
+opening the item (confirming the star's own `TapGestureRecognizer` takes precedence over the row's
+enclosing one — `10-favorite-star-toggled.png`); the star's state was confirmed to persist across
+a lock/unlock cycle.
+
+**Folder deletion cascade, end-to-end**: deleting "Finans" showed the expected confirmation wording
+naming both the cascade and the orphaning behavior (`12-folder-delete-confirmation-dialog.png`).
+Confirming it removed **both** "Finans" and "— Kartlar" from `FolderManagementPage`'s list in one
+action (`13-cascade-delete-both-folders-gone.png`) — proving the schema's cascade FK actually
+fires through `FolderRepository.Delete`'s single DELETE statement — while "Ev WiFi" (which had
+been filed under the now-deleted "Kartlar") remained fully present back on `VaultListPage`, simply
+no longer showing a folder chip for it (`14-items-preserved-after-cascade-delete.png`) — the data
+itself was never at risk, exactly as `IFolderRepository.Delete`'s doc comment commits to.
+
+### Tests (`KeyKeeper.Core.Tests/Data/FolderRepositoryTests.cs`, `TagRepositoryTests.cs`, `VaultItemSearchTextTests.cs`, plus additions to `VaultItemRepositoryTests.cs`)
+
+161 tests in the suite as of Phase 5 (up from 126 at the end of Phase 4), all passing:
+- **`FolderRepositoryTests`**: create/get/rename/delete round-trips; creating with a non-existent
+  parent throws `KeyNotFoundException`; `Delete` cascades through multiple levels of nesting
+  (grandchild folders, not just direct children); `Delete` orphans items directly inside the
+  deleted folder *and* items inside cascade-deleted descendant folders, rather than deleting or
+  blocking on them — the regression test for the delete-cascade decision this phase's `IFolderRepository`
+  doc comment commits to.
+- **`TagRepositoryTests`**: create/get/rename/delete round-trips; duplicate-name creation and
+  rename-to-an-existing-name both throw `ArgumentException`; deleting a tag removes it from every
+  item that had it (via the schema's own cascade); `DeleteUnused` removes only tags attached to
+  zero items, leaving tags still in use untouched.
+- **`VaultItemSearchTextTests`**: one test per item type, each asserting both that its non-secret
+  fields *are* included and that its secret field(s) — password, CVV, license key, Wi-Fi password,
+  `SecureNoteItem.Content` — are explicitly *not*; plus a null-optional-fields case confirming
+  `Build` doesn't throw when every non-title field is absent.
+- **New in `VaultItemRepositoryTests`**: `ListByFolder` (direct-children case and the `null` =
+  unfiled case), `ListByTag`, `ListFavorites` — each confirming the method returns exactly the
+  matching item(s) and excludes non-matching ones.
+
+No test exists for `PageActivityBehavior`, the two MAUI rendering/crash bugs found above, or any
+other UI-layer code introduced this phase, for the same reason Phase 3's biometric prompt has
+none (see "Why neither side has (or can have) an xUnit test") — these need a live page's visual
+tree, a running `IPlatformApplication`, or real Android/MAUI rendering behavior, none of which a
+desktop `dotnet test` run provides. That gap is exactly why both bugs surfaced only during manual
+on-emulator verification, not the automated test run — the manual verification pass **is** their
+test coverage.
+
+### Dependency injection (`MauiProgram.cs`)
+
+Added this phase: `IFolderRepository` → `FolderRepository`, `ITagRepository` → `TagRepository`
+(both singletons, alongside `IVaultItemRepository`). Pages/ViewModels, transient like every other
+page: `FolderManagementViewModel`/`FolderManagementPage`. `VaultListViewModel` and all five item
+form ViewModels' constructors grew new parameters (`IFolderRepository`/`ITagRepository` as
+needed) — no registration changes needed for those beyond the existing transient registrations,
+since the container resolves constructor parameters automatically.
+
+## Explicitly out of scope so far
+- No dedicated tag-management screen (Phase 5) — tags are created inline from an item form's "Yeni
+  etiket" field; renaming/deleting a tag entity or `ITagRepository.DeleteUnused` cleanup have no UI
+  yet even though the repository fully supports them (see its own tests).
 - No on-device/emulator integration tests exercising real SQLCipher key acceptance/rejection
   (see Phase 2's Testing section) — desktop tests cover everything except the actual cipher.
 - The iOS `BiometricAuthService` implementation is unverified against real Face ID/Touch ID

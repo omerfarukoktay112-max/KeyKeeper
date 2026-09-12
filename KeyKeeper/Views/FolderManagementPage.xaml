@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
+             x:Class="KeyKeeper.Views.FolderManagementPage"
+             x:DataType="viewmodels:FolderManagementViewModel"
+             Title="Klasörler">
+
+    <Grid RowDefinitions="Auto,Auto,*" Padding="20" RowSpacing="12">
+
+        <VerticalStackLayout Grid.Row="0" Spacing="8">
+            <Entry Placeholder="Yeni klasör adı" Text="{Binding NewFolderName}" />
+            <Picker Title="Üst klasör" ItemsSource="{Binding ParentOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedParentOption}" />
+            <Button Text="Klasör Oluştur" Command="{Binding CreateFolderCommand}" HorizontalOptions="Fill" />
+            <Label Text="{Binding ErrorMessage}" TextColor="Red" IsVisible="{Binding HasError}" />
+        </VerticalStackLayout>
+
+        <BoxView Grid.Row="1" HeightRequest="1" />
+
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Folders}" x:DataType="viewmodels:FolderManagementViewModel">
+            <CollectionView.EmptyView>
+                <Label Text="Henüz klasör yok." Style="{StaticResource SubHeadline}" Padding="0,30" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="viewmodels:FolderListEntry">
+                    <Grid Padding="0,10" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                        <Label Grid.Column="0" Text="{Binding DisplayName}" VerticalOptions="Center" />
+                        <Button Grid.Column="1" Text="Yeniden Adlandır"
+                                Command="{Binding BindingContext.RenameCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
+                                CommandParameter="{Binding .}" />
+                        <Button Grid.Column="2" Text="Sil" BackgroundColor="Red"
+                                Command="{Binding BindingContext.DeleteCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
+                                CommandParameter="{Binding .}" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</ContentPage>

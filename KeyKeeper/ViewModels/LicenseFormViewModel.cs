@@ -7,7 +7,7 @@ namespace KeyKeeper.ViewModels;
 
 public sealed partial class LicenseFormViewModel : VaultItemFormViewModelBase<LicenseItem>
 {
-    public LicenseFormViewModel(IVaultItemRepository repository) : base(repository)
+    public LicenseFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
     {
     }
 

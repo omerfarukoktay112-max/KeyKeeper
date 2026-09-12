@@ -12,7 +12,7 @@ public sealed partial class WifiFormViewModel : VaultItemFormViewModelBase<WifiI
     /// underlying value N, since <see cref="SecurityProtocolIndex"/> casts directly between them.</summary>
     public static readonly string[] SecurityProtocolOptions = ["Açık (şifresiz)", "WEP", "WPA2", "WPA3"];
 
-    public WifiFormViewModel(IVaultItemRepository repository) : base(repository)
+    public WifiFormViewModel(IVaultItemRepository repository, IFolderRepository folders) : base(repository, folders)
     {
     }
 

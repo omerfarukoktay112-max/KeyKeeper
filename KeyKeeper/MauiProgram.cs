@@ -58,6 +58,8 @@ namespace KeyKeeper
             builder.Services.AddSingleton<IMasterPasswordVerifier, MasterPasswordVerifier>();
             builder.Services.AddSingleton<IEncryptionService, AesGcmEncryptionService>();
             builder.Services.AddSingleton<IVaultItemRepository, VaultItemRepository>();
+            builder.Services.AddSingleton<IFolderRepository, FolderRepository>();
+            builder.Services.AddSingleton<ITagRepository, TagRepository>();
 
             // KeyKeeper.Services.BiometricAuthService: two separate classes, one per platform,
             // both under this same namespace -- Platforms/Android/BiometricAuthService.cs (built
@@ -88,6 +90,8 @@ namespace KeyKeeper
             builder.Services.AddTransient<NoteFormPage>();
             builder.Services.AddTransient<LicenseFormViewModel>();
             builder.Services.AddTransient<LicenseFormPage>();
+            builder.Services.AddTransient<FolderManagementViewModel>();
+            builder.Services.AddTransient<FolderManagementPage>();
 
             return builder.Build();
         }
