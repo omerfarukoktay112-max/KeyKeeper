@@ -100,14 +100,14 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
   crefs in the same comment). Fixed by renaming to the `*Async` APIs and qualifying the two crefs
   — both builds are back to their pre-existing warning counts: **27** on Android, **9** on iOS,
   both entirely the `NU1608` family, 0 errors on either.
-- **Post-Phase-10**: Android Debug now shows 24 warnings (18 `NU1608` + 6 `CA1422`, the latter
-  genuinely necessary — see Phase 10's own Build status subsection for why); 0 errors. iOS unchanged
-  at 9 `NU1608` warnings, 0 errors. The `NU1608` count itself reads 18 here rather than the 27
-  recorded above — re-measured directly this phase (`dotnet build ... -f net10.0-android`, Debug)
-  and reproducible, but not chased down further; plausibly a package-resolution/restore-state
-  difference between Debug and the Release-config builds most earlier counts were taken from, not a
-  change this phase made (no package references were touched). Worth reconciling in a future phase
-  rather than treated as settled.
+- **Post-Phase-10**: Android now shows 24 warnings (18 `NU1608` + 6 `CA1422`, the latter genuinely
+  necessary — see Phase 10's own Build status subsection for why); 0 errors, in both Debug and
+  Release. iOS unchanged at 9 `NU1608` warnings, 0 errors. The `NU1608` count itself reads 18 here
+  rather than the 27 recorded above — re-measured directly this phase in both configs and
+  reproducible in each, so it's not a Debug/Release difference; no package reference was touched
+  this phase, so the likely explanation is a NuGet dependency-resolution shift between sessions
+  (floating transitive version ranges resolving differently) rather than anything this phase did.
+  Not chased down further — worth reconciling in a future phase rather than treated as settled.
 - Both platform builds above were re-verified after Phase 3's `BiometricAuthService`
   implementations and the Phase 3 UI (`AppShell`, `App.xaml.cs`, `Views/`, `ViewModels/`) were
   added (same 0 errors, same pre-existing warning set on each platform).
