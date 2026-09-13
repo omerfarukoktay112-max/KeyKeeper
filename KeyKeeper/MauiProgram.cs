@@ -1,4 +1,5 @@
 ﻿using KeyKeeper.Core.Auth;
+using KeyKeeper.Core.Autofill;
 using KeyKeeper.Core.Backup;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
@@ -120,6 +121,14 @@ namespace KeyKeeper
             builder.Services.AddSingleton<IDeviceSecurityChecker, DeviceSecurityChecker>();
             builder.Services.AddSingleton<IDeviceSecurityWarningService, DeviceSecurityWarningService>();
 
+            // Otomatik Doldurma (Phase 10): AutofillCompletionHandler is a singleton because
+            // KeyKeeperAutofillService (Android) and MainActivity write to it and LockPage reads
+            // from it across separate DI-outside-the-container resolutions -- see its own doc
+            // comment. IAutofillServiceStatusChecker is stateless, same lifetime reasoning as every
+            // other platform-glue singleton above.
+            builder.Services.AddSingleton<IAutofillCompletionHandler, AutofillCompletionHandler>();
+            builder.Services.AddSingleton<IAutofillServiceStatusChecker, AutofillServiceStatusChecker>();
+
             // Pages/ViewModels: transient, not singleton -- each navigation should get a fresh
             // ViewModel (e.g. LockPage's Password field shouldn't survive to the next time the
             // user lands back on it after a lock). Pages take their ViewModel via constructor
@@ -148,6 +157,8 @@ namespace KeyKeeper
             builder.Services.AddTransient<PasswordGeneratorPage>();
             builder.Services.AddTransient<BackupViewModel>();
             builder.Services.AddTransient<BackupPage>();
+            builder.Services.AddTransient<SettingsViewModel>();
+            builder.Services.AddTransient<SettingsPage>();
 
             return builder.Build();
         }

@@ -313,6 +313,9 @@ public sealed partial class VaultListViewModel : ObservableObject
     private static async Task OpenBackupAsync() => await Shell.Current.GoToAsync("backup");
 
     [RelayCommand]
+    private static async Task OpenSettingsAsync() => await Shell.Current.GoToAsync("settings");
+
+    [RelayCommand]
     private async Task AddAsync()
     {
         string choice = await Shell.Current.DisplayActionSheetAsync(

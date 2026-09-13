@@ -11,6 +11,7 @@
         <ToolbarItem Text="Klasörler" Command="{Binding ManageFoldersCommand}" />
         <ToolbarItem Text="Şifre Üret" Command="{Binding OpenPasswordGeneratorCommand}" />
         <ToolbarItem Text="Yedekleme" Command="{Binding OpenBackupCommand}" />
+        <ToolbarItem Text="Ayarlar" Command="{Binding OpenSettingsCommand}" />
         <ToolbarItem Text="Kilitle" Command="{Binding LockCommand}" />
     </ContentPage.ToolbarItems>
 

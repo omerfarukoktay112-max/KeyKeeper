@@ -76,7 +76,7 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
 - `KeyKeeper.Core` and `KeyKeeper.Core.Tests`: `dotnet build` on each — 0 warnings / 0 errors.
   `dotnet test KeyKeeper.Core.Tests` — all tests pass (98 as of Phase 3, 126 as of Phase 4, 161 as of
   Phase 5, 195 as of Phase 6, 202 as of Phase 7, 220 as of Phase 8, unchanged at Phase 9 — a
-  visual/UX-only phase, see its own section).
+  visual/UX-only phase, see its own section — 248 as of Phase 10).
 - `KeyKeeper` (MAUI head), Android: `dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android`
   — 0 errors, including the AndroidManifest merge step. 27 `NU1608` warnings remain (pre-existing,
   unrelated to Phase 3 or the minSdk change): several `Xamarin.AndroidX.*` transitive packages
@@ -100,6 +100,14 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
   crefs in the same comment). Fixed by renaming to the `*Async` APIs and qualifying the two crefs
   — both builds are back to their pre-existing warning counts: **27** on Android, **9** on iOS,
   both entirely the `NU1608` family, 0 errors on either.
+- **Post-Phase-10**: Android Debug now shows 24 warnings (18 `NU1608` + 6 `CA1422`, the latter
+  genuinely necessary — see Phase 10's own Build status subsection for why); 0 errors. iOS unchanged
+  at 9 `NU1608` warnings, 0 errors. The `NU1608` count itself reads 18 here rather than the 27
+  recorded above — re-measured directly this phase (`dotnet build ... -f net10.0-android`, Debug)
+  and reproducible, but not chased down further; plausibly a package-resolution/restore-state
+  difference between Debug and the Release-config builds most earlier counts were taken from, not a
+  change this phase made (no package references were touched). Worth reconciling in a future phase
+  rather than treated as settled.
 - Both platform builds above were re-verified after Phase 3's `BiometricAuthService`
   implementations and the Phase 3 UI (`AppShell`, `App.xaml.cs`, `Views/`, `ViewModels/`) were
   added (same 0 errors, same pre-existing warning set on each platform).
@@ -2183,6 +2191,237 @@ Evidence is in `docs/phase9-verification/`.
   available in this environment, the same limitation as every other iOS-only piece of this app
   since Phase 2.
 
+## Phase 10: Autofill (Android-only)
+
+Android `AutofillService` integration — KeyKeeper can offer to fill saved `LoginItem` credentials
+into other apps' and the browser's login forms. **iOS is explicitly out of scope for this phase.**
+iOS autofill is a Credential Provider Extension — a separate app target with its own entitlement,
+UI, and lifecycle, nothing like Android's in-process `Service`-based model this phase builds on. If
+this project ever gets Mac/Xcode access, that's a self-contained future phase, not an extension of
+this one. `KeyKeeper.Core/Autofill`'s two interfaces already have permanent, no-op iOS
+implementations (`Platforms/iOS/AutofillCompletionHandler.cs`, `AutofillServiceStatusChecker.cs`)
+precisely so the cross-platform code (`LockPage`, `SettingsViewModel`) never needs an `#if ANDROID`
+— see each interface's doc comment.
+
+### Domain matching (`KeyKeeper.Core/Autofill/AutofillDomainMatcher.cs`)
+
+The one piece of this phase's logic that's pure and platform-independent, so it's the one piece
+unit-tested directly (28 tests, `AutofillDomainMatcherTests.cs`) rather than only verified
+on-device. `NormalizeHost` strips scheme/path/port/`www.`/casing from a URL or bare hostname;
+`IsMatch` then requires the autofill request's host to be the saved item's own host **or a
+subdomain of it** (`accounts.google.com` matches a login saved against `google.com`; the reverse
+does not — a narrower saved scope shouldn't broaden). Deliberately not a raw substring/suffix check
+on unnormalized strings — that would let a saved `google.com` wrongly match an attacker's
+`evilgoogle.com` or `google.com.evil.com`; both sides are normalized first and the subdomain check
+requires an exact label boundary (a literal `.` immediately before the suffix). Scope: this matches
+against a browser-rendered field's web domain (`ViewNode.WebDomain`) only — a native (non-browser)
+app's autofill request carries no web domain at all, and this phase doesn't attempt to fuzzy-match
+those against a saved URL by package name; see "Explicitly out of scope" below.
+
+### `KeyKeeperAutofillService` (`KeyKeeper/Platforms/Android/KeyKeeperAutofillService.cs`)
+
+Registered via `[Service(Permission = "android.permission.BIND_AUTOFILL_SERVICE", ...)]` +
+`[IntentFilter(["android.service.autofill.AutofillService"])]` — the same "declare via a C#
+attribute, let the build merge it into `AndroidManifest.xml`" mechanism `MainActivity`'s
+`[Activity]` already uses (see Phase 3's manifest-merge notes); nothing was hand-edited into
+`AndroidManifest.xml` directly, and the merged manifest was inspected to confirm the `<service>`
+element, its permission, and its intent-filter all landed correctly (see Manual verification
+below). `BIND_AUTOFILL_SERVICE` is what restricts binding to the OS itself — no app, including this
+one, can bind to it directly.
+
+**The security invariant this whole class is built around**: `OnFillRequest` never reads a single
+field of vault data while `IAuthenticationService.IsUnlocked` is false. Concretely, in source order:
+1. Parse the latest `AssistStructure` (`request.FillContexts[^1].Structure`); bail out
+   (`callback.OnSuccess(null)`) if there isn't one.
+2. Walk the view tree (`CollectFields`/`ClassifyNode`) collecting `(AutofillId, FieldKind)` pairs
+   and the first `ViewNode.WebDomain` found. Field classification prefers explicit `View`
+   autofill hints (`AutofillHintUsername`/`Password`/`EmailAddress`) and falls back to the raw
+   Android input-type variation flags (`TextVariationPassword`/`WebPassword`/`VisiblePassword`,
+   `TextVariationEmailAddress`/`WebEmailAddress`) when a field carries no hint at all — a
+   best-effort heuristic, not exhaustive, same "documented, tunable" spirit as `Argon2Constants`/
+   `LockoutPolicy`, not a claim every possible login form is recognized.
+3. No web domain, or no username/password field found at all → `callback.OnSuccess(null)`. **No
+   vault access has happened yet at this point, regardless of lock state** — steps 1-3 only look at
+   the `AssistStructure` the OS itself handed over.
+4. Resolve `IAuthenticationService`/`IVaultItemRepository` from `IPlatformApplication.Current`'s
+   service provider (not constructor injection — like `PageActivityBehavior`, this class is
+   instantiated by the Android OS itself, outside this app's DI container, so there's no
+   constructor for it to inject into).
+5. **Only if `IAuthenticationService.IsUnlocked` is true**: build the real `FillResponse` (see
+   `AutofillResponseBuilder` below) and return it.
+6. **If locked**: build a `FillResponse` whose only action is `FillResponse.Builder.
+   SetAuthentication(autofillIds, pendingIntent.IntentSender, presentation)` — a single
+   "KeyKeeper ile aç 🔒" suggestion covering every autofillable field found. The `PendingIntent`
+   targets `MainActivity` itself (not a bespoke second lock-screen Activity) with a custom action
+   (`AutofillAuthContract.Action`) and the matched `AutofillId`s + web domain as extras — tapping it
+   opens **this app's own, completely ordinary lock screen**, nothing autofill-specific. **The real
+   credentials are derived only after that unlock actually succeeds** (see the completion flow
+   below) — step 6 itself never touches `IVaultItemRepository`.
+
+`AutofillResponseBuilder` (`internal static`, shared by `OnFillRequest`'s step 5 and the completion
+flow's step below — the only two places in this app that ever call it) filters
+`IVaultItemRepository.List(VaultItemType.Login)` through `AutofillDomainMatcher.IsMatch`, and
+builds one `Dataset` per match with a `RemoteViews` presentation (`"{Title} ({Username})"`, using
+Android's own `simple_list_item_1` system layout rather than a hand-written layout resource this
+phase didn't need) and the real username/password values.
+
+`OnSaveRequest` is implemented (the abstract base class requires it) but is a deliberate no-op
+(`callback.OnSuccess()`) — see "Explicitly out of scope" below for why it's never actually invoked
+in practice.
+
+### Authentication-required continuation (`MainActivity`, `AutofillCompletionHandler`, `LockPage`)
+
+`IAutofillCompletionHandler` (`KeyKeeper.Core/Autofill`) is what lets the cross-platform unlock flow
+finish this job without `LockPage`/`LockViewModel` ever referencing an Android type:
+
+- `MainActivity.OnCreate`/`OnNewIntent` (both needed — `LaunchMode.SingleTop` means either can fire
+  depending on whether the task was already running) recognize the authentication `PendingIntent`'s
+  launch via its custom action and call `AutofillCompletionHandler.SetPendingRequest(usernameId,
+  passwordId, requestHost)` — pulled from `Intent` extras, resolved via `IPlatformApplication.
+  Current`'s service provider (registered as a singleton in `MauiProgram.cs` for exactly this: it
+  needs to be the same instance `MainActivity` writes to and `LockPage` later reads from).
+- The user sees and interacts with the ordinary lock screen — nothing here bypasses master-password
+  verification, lockout, or biometric unlock.
+- `LockPage.OnUnlocked` (Phase 3's original handler, extended this phase) checks
+  `IAutofillCompletionHandler.HasPendingRequest` first: if set, calls `Complete()` instead of the
+  usual `GoToAsync("//vault")` — there's no vault screen to show, the user never left their other
+  app. On iOS, `HasPendingRequest` is permanently false, so this always falls through to the
+  original navigation; no behavior change there.
+- `AutofillCompletionHandler.Complete()` (Android) re-checks `IsUnlocked` (defensive; expected
+  always true here), calls the **same** `AutofillResponseBuilder.Build` `OnFillRequest` uses, wraps
+  the result as `AutofillManager.ExtraAuthenticationResult` on an `Intent`, and calls
+  `Activity.SetResult`/`Finish()` on `Platform.CurrentActivity` — handing the real credentials back
+  to the OS Autofill framework exactly once, only now, only because the vault is actually unlocked.
+
+### Settings page (`KeyKeeper/Views/SettingsPage.xaml`, `SettingsViewModel`, `IAutofillServiceStatusChecker`)
+
+A MAUI app cannot make itself the OS's default autofill service programmatically on either
+platform — the user must choose it themselves in system settings. `SettingsPage` (routed as
+`"settings"`, reached from `VaultListPage`'s new "Ayarlar" toolbar item) shows current status
+(`IAutofillServiceStatusChecker.IsEnabled()` — Android: `AutofillManager.HasEnabledAutofillServices`
+via the OS's `Java.Lang.Class`-typed `GetSystemService` overload, since this binding doesn't expose
+a named `Context` field for every system service string constant; guarded by
+`OperatingSystem.IsAndroidVersionAtLeast(26)`, since the whole Autofill Framework is API 26+ while
+this app's `SupportedOSPlatformVersion` is 23 — see "Target frameworks") and a button
+(`OpenAutofillSettingsCommand`) that launches `Settings.ActionRequestSetAutofillService` scoped to
+this app's own package (`"package:" + PackageName`) — sending the user straight to the system
+picker with KeyKeeper as an option, not the generic autofill-settings list. iOS's implementation is
+a permanent "not available" stub (`IsEnabled()` always false, `OpenSettings()` a no-op) — Phase 10
+scope.
+
+### Security assessment
+
+Re-read directly from the code (not assumed) for this write-up:
+- `OnFillRequest` calls `IVaultItemRepository`/reads any decrypted data **only** inside the
+  `if (auth.IsUnlocked)` branch (step 5 above) or inside `AutofillCompletionHandler.Complete()`
+  (itself gated on `_auth.IsUnlocked`) — there is no third code path that reaches
+  `AutofillResponseBuilder.Build`.
+- The locked-path response (step 6) is built entirely from data the OS already handed over in the
+  `AssistStructure` (field ids, web domain) — no repository call, no `IAuthenticationService` call
+  beyond the `IsUnlocked` check itself.
+- `AutofillCompletionHandler` holds `AutofillId`s and a domain string, **never** decrypted vault
+  data, between `SetPendingRequest` and `Complete()`/`Cancel()` — see its own doc comment.
+- **Interaction with the clipboard clearer (Phase 6)**: autofill fills a form field directly
+  (`Dataset.SetValue`), the same mechanism a browser's own saved-password autofill uses — it never
+  touches `IClipboard`/the system clipboard at all. There's no interaction to reconcile: autofill is
+  strictly an *additional*, clipboard-free way to get a credential into a field, and if anything
+  reduces how often a user needs Phase 6's "Kopyala" button (and therefore the clipboard-exposure
+  window `ClipboardClearingService` exists to bound) in the first place.
+
+### Tests
+
+`KeyKeeper.Core.Tests/Autofill/AutofillDomainMatcherTests.cs` — 28 tests: scheme/`www.`/casing/
+port/path normalization, same-host and subdomain matches, narrower-saved-scope and unrelated-domain
+non-matches (including the `evilgoogle.com`/`google.com.evil.com` label-boundary attack shapes),
+null/empty-input handling. `dotnet test KeyKeeper.Core.Tests` — 248/248 passing (220 pre-Phase-10 +
+28 new), unchanged production logic elsewhere.
+
+`KeyKeeperAutofillService` itself (and `AutofillCompletionHandler`/`AutofillResponseBuilder`) are,
+like `BiometricAuthService`/`DeviceSecurityChecker` before them, thin adapters over real OS APIs
+(`AssistStructure`, `FillRequest`, the Autofill Framework's own dataset/response types) that don't
+exist outside a running Android process — there's no in-process way to unit test "did the OS
+actually offer this suggestion" any more than Phase 2 could unit test real SQLCipher key rejection
+without a device. That's what Manual verification below is for.
+
+### Manual verification — Android emulator (`pixel_7_-_api_36_0`)
+
+Evidence in `docs/phase10-verification/`. Every item below was actually driven or actually observed
+on-device, not inferred from a clean build:
+
+- **Manifest merge**: `obj/Debug/net10.0-android/android/AndroidManifest.xml` contains
+  `<service android:name="crc64....KeyKeeperAutofillService" android:exported="true"
+  android:label="KeyKeeper" android:permission="android.permission.BIND_AUTOFILL_SERVICE">` with
+  the `android.service.autofill.AutofillService` intent-filter action — confirming the
+  attribute-based registration actually landed, the same verification method Phase 3 used for
+  `MainActivity`'s manifest entry.
+- **KeyKeeper selectable and selected as the OS's autofill service**: `adb shell am start -a
+  android.settings.REQUEST_SET_AUTOFILL_SERVICE` showed KeyKeeper alongside "None"/"Google" in the
+  system picker; after selecting it and confirming, `adb shell dumpsys autofill` reported
+  `defaultService=com.companyname.keykeeper/crc64....KeyKeeperAutofillService` — KeyKeeper is
+  genuinely the system's chosen provider, not just theoretically eligible.
+- **`SettingsPage` correctly reflects real OS state**: with KeyKeeper selected, the page's status
+  label read "KeyKeeper şu anda sistemin otomatik doldurma servisi olarak seçili." — confirming
+  `IAutofillServiceStatusChecker.IsEnabled()` genuinely queries live OS state, not a cached/assumed
+  value.
+- **`OnFillRequest` is genuinely invoked by the OS, with correct field/domain analysis**: focusing
+  the "Network name" field on Android Settings' own Wi-Fi "Add network" screen (a plain native
+  `EditText`, chosen as a target because it reliably participates in the Autofill Framework)
+  triggered a real call — confirmed via a temporary `#if PERF_MEASUREMENT`-gated `Console.WriteLine`
+  inside `OnFillRequest` (added, observed via `adb logcat`, then fully reverted before committing —
+  same "measure for real, then remove the scaffolding" pattern as Phase 11's Argon2id timing
+  measurement), which logged `OnFillRequest called` followed by `webDomain= fieldsFound=0
+  username=False password=False` — exactly correct: a Wi-Fi network-name field has no web domain
+  and isn't a username/password field, so `KeyKeeperAutofillService` correctly found nothing to
+  offer, with zero vault access either way.
+- **A real, matching web login was *not* live-demonstrated end-to-end, and that gap is itself
+  evidenced, not hand-waved**: the intended demo — Chrome navigated to `https://github.com/login`
+  (a real page, matching the `LoginItem` created for this phase's testing, `Url =
+  "https://github.com"`) — never produced an autofill suggestion. Using the *same*
+  `PERF_MEASUREMENT`-instrumented build that had just logged a real call from the Wi-Fi screen
+  above, focusing Chrome's username field on that exact GitHub login page produced **zero** log
+  output and `adb shell dumpsys autofill` reported "No sessions" — meaning Chrome itself never
+  queried the OS Autofill Framework for that page at all, on this specific Chrome build/channel
+  (133.0.6943.137) on this emulator image. This was investigated, not just observed once:
+  `chrome://flags` was checked for a third-party-autofill-delegation flag
+  (`#autofill-third-party-mode-content-provider` was the closest match found; toggling it did not
+  change the outcome), and Chrome's own Settings → Google Password Manager screen has no visible
+  "use another autofill service" option on this build. The comparative evidence (native field:
+  called; Chrome web field, same instrumented build, same session: not called) places this
+  specifically as Chrome's own delegation behavior on this emulator/channel, not a defect in
+  `KeyKeeperAutofillService` — but it does mean the full "browser suggestion appears → tap → (if
+  locked) redirected to KeyKeeper's lock screen → unlock → real value fills in" round trip was
+  verified in *pieces* (OS invocation + field analysis on a native target; the authentication
+  `PendingIntent`/`Complete()` code path by direct review, not a live trigger) rather than as one
+  unbroken live demonstration. **Recommended follow-up**: retry on a physical device or a Chrome
+  channel/version where third-party autofill delegation is confirmed enabled.
+- **No regression to the ordinary lock/unlock flow**: the vault auto-locked mid-session (inactivity
+  timeout) and was unlocked normally afterward — `LockPage.OnUnlocked`'s new
+  `HasPendingRequest`-check branch correctly fell through to the original `GoToAsync("//vault")`
+  path with no pending autofill request, landing back on `VaultListPage` with the previously
+  created items intact, no crash.
+- **iOS**: compile-only (`dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-ios`) — 0 errors,
+  9 warnings, unchanged from Phase 9/11 — confirming this phase's shared-code changes (`LockPage`,
+  `AppShell`, `VaultListViewModel`/`.xaml`, `MauiProgram.cs`) and the permanent no-op iOS Autofill
+  implementations don't regress the iOS target. No Mac/Xcode available, the same limitation as
+  every iOS-only piece of this app since Phase 2.
+
+### Build status (Android, Debug)
+
+`dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-android` — 0 errors, 24 warnings: 18 are the
+same pre-existing `NU1608` family (unrelated to this phase); the remaining 6 are `CA1422`
+("obsolete since API 33") on `Dataset.Builder`, `Dataset.Builder.SetValue`, `FillResponse.Builder.
+SetAuthentication`, and `Intent.GetParcelableExtra(string?)` — all genuinely necessary here, not
+oversights: this phase targets API 26 (the Autofill Framework's own minimum), and the API-33+
+replacements for these specific calls aren't available down to 26, so using the "old" (still fully
+functional, not removed) signatures is the only way to support Android 8.0-12 at all. Every other
+new API-26+-only call in this phase's code (`AssistStructure.ViewNode.GetAutofillHints()`/
+`InputType`, `AutofillManager`, etc.) is instead covered by explicit `[SupportedOSPlatform
+("android26.0")]` annotations — placed on the narrowest member that actually needs it (e.g. only
+`AutofillCompletionHandler.Complete()`, not the whole class, so the class stays constructible via DI
+on every supported Android version; see that file) — rather than accumulating `CA1416` platform-
+compatibility warnings the way an unannotated first draft of this phase briefly did (39 of them,
+before this cleanup).
+
 ## Phase 11: Release hardening (Android-focused)
 
 Functional development (Phases 0-9) is done. This phase makes the Android build genuinely
@@ -2478,3 +2717,22 @@ padlock glyph, the one screen this app's own `FLAG_SECURE` doesn't cover).
   iOS remains verified compile-only, the same limitation as every phase since Phase 2.
 - No CI/CD pipeline automating the Phase 11 release build/sign steps — `dotnet publish` with the
   signing properties is currently a manual, documented command a release engineer runs by hand.
+- iOS autofill (a Credential Provider Extension) is entirely out of scope for Phase 10, by explicit
+  instruction — not attempted, not stubbed toward, and a genuinely different mechanism from
+  Android's `AutofillService`, not a variant of it. Revisit only if/when Mac/Xcode access exists.
+- Native (non-browser) app autofill matching by package name (Phase 10, deliberate) — only a
+  browser-reported web domain (`ViewNode.WebDomain`) is matched against a saved `LoginItem.Url`;
+  see `AutofillDomainMatcher`'s doc comment for why a package-name fallback wasn't attempted.
+- `OnSaveRequest` (Phase 10) is implemented only to satisfy `AutofillService`'s abstract contract —
+  no `FillResponse` this app builds ever calls `SetSaveInfo(...)`, so Android has no reason to
+  actually invoke it. "Offer to save a new login typed into another app" is a reasonable future
+  enhancement, explicitly flagged as optional/not attempted this phase.
+- A real matching web-login autofill suggestion was not demonstrated live end-to-end in Chrome on
+  this emulator/Chrome-channel this phase (Chrome did not delegate to the OS Autofill Framework for
+  a real `github.com/login` page, confirmed via a temporary debug-logged build that *did* receive a
+  real call for a native Android Settings field in the same session) — see Phase 10's Manual
+  verification section for the full investigation and comparative evidence. The underlying
+  mechanism (OS invocation, field/domain analysis, the locked-vault authentication continuation) is
+  verified in pieces (native-field on-device trigger + code review + 28 unit tests for the matching
+  logic itself), not as one unbroken browser demo. Recommended follow-up: retry on a physical
+  device or a Chrome channel confirmed to support third-party autofill delegation.
