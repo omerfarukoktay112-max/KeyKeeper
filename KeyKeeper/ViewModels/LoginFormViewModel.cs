@@ -115,7 +115,7 @@ public sealed partial class LoginFormViewModel : VaultItemFormViewModelBase<Logi
     partial void OnTotpSecretChanged(string? value) => RefreshTotpTimer();
 
     /// <summary>Starts (or stops) the 1-second TOTP refresh timer based on whether there's a
-    /// secret to show a code for. Called once <see cref="Initialize"/> has loaded
+    /// secret to show a code for. Called once <see cref="VaultItemFormViewModelBase{TPayload}.Initialize"/> has loaded
     /// <see cref="TotpSecret"/> in edit mode, and again on every edit of the field so typing a new
     /// secret updates the live code immediately.</summary>
     private void RefreshTotpTimer()

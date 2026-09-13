@@ -32,7 +32,7 @@ public sealed record FolderPickerOption(string? Id, string DisplayName);
 ///
 /// Folder/tag assignment (Phase 5) lives here, not in the typed payload -- <see cref="IVaultItemRepository.SetFolder"/>/
 /// <see cref="IVaultItemRepository.AddTag"/>/<see cref="IVaultItemRepository.RemoveTag"/> are
-/// separate calls from <see cref="Create{TPayload}"/>'s/<see cref="Update{TPayload}"/>'s payload
+/// separate calls from <see cref="IVaultItemRepository.Create{TPayload}"/>'s/<see cref="IVaultItemRepository.Update{TPayload}"/>'s payload
 /// write, so <see cref="Save"/> makes them as extra steps: <see cref="SelectedFolderOption"/>'s id
 /// is passed straight into <c>Create</c> for a new item, or applied via <c>SetFolder</c>
 /// unconditionally after <c>Update</c> for an existing one (idempotent either way, simpler than

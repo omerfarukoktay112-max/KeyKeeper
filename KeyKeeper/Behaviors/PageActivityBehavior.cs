@@ -73,7 +73,7 @@ public sealed class PageActivityBehavior : Behavior<Page>
     private static async void FadeIn(Page page)
     {
         page.Opacity = 0;
-        await page.FadeTo(1, 180, Easing.CubicOut);
+        await page.FadeToAsync(1, 180, Easing.CubicOut);
     }
 
     private void AttachToDescendants(IVisualTreeElement node)

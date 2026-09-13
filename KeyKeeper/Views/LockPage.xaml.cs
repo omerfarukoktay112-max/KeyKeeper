@@ -40,9 +40,9 @@ public partial class LockPage : ContentPage
     private static async Task ShakeAsync(VisualElement element)
     {
         const uint step = 60;
-        await element.TranslateTo(-10, 0, step, Easing.Linear);
-        await element.TranslateTo(10, 0, step, Easing.Linear);
-        await element.TranslateTo(-6, 0, step, Easing.Linear);
-        await element.TranslateTo(0, 0, step, Easing.Linear);
+        await element.TranslateToAsync(-10, 0, step, Easing.Linear);
+        await element.TranslateToAsync(10, 0, step, Easing.Linear);
+        await element.TranslateToAsync(-6, 0, step, Easing.Linear);
+        await element.TranslateToAsync(0, 0, step, Easing.Linear);
     }
 }

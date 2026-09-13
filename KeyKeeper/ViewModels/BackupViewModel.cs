@@ -149,7 +149,7 @@ public sealed partial class BackupViewModel : ObservableObject
             }
 
             BackupImportPreview preview = result.Preview!;
-            bool confirmed = await Shell.Current.DisplayAlert(
+            bool confirmed = await Shell.Current.DisplayAlertAsync(
                 "Kasa Değiştirilecek",
                 $"{preview.ItemCount} öğe, {preview.FolderCount} klasör, {preview.TagCount} etiket içe aktarılacak. " +
                 "Mevcut kasanızın TÜM içeriği silinecek ve bunların yerine geçecek. Bu işlem GERİ ALINAMAZ.",
@@ -187,7 +187,7 @@ public sealed partial class BackupViewModel : ObservableObject
         ErrorMessage = null;
         StatusMessage = null;
 
-        bool acknowledged = await Shell.Current.DisplayAlert(
+        bool acknowledged = await Shell.Current.DisplayAlertAsync(
             "Şifresiz Dışa Aktarım",
             "Bu CSV dosyası tüm parolalarınızı ve diğer gizli bilgilerinizi ŞİFRESİZ, düz metin " +
             "olarak içerecek. Dosya, kaydettiğiniz veya paylaştığınız her yerde güvensiz biçimde " +

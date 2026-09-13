@@ -111,7 +111,7 @@ public sealed partial class FolderManagementViewModel : ObservableObject
     [RelayCommand]
     private async Task DeleteAsync(FolderListEntry entry)
     {
-        bool confirmed = await Shell.Current.DisplayAlert(
+        bool confirmed = await Shell.Current.DisplayAlertAsync(
             "Klasör silinsin mi?",
             $"\"{entry.Name}\" klasörü (ve varsa alt klasörleri) silinecek. İçindeki öğeler silinmez, klasörsüz duruma geçer.",
             "Sil",

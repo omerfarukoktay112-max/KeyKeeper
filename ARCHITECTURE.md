@@ -88,6 +88,18 @@ because a transitive `androidx.lifecycle-runtime` version pulled in by
   device/simulator app bundle builds, since that additionally requires Xcode/a Mac build host,
   unavailable on this Windows machine (same limitation noted under Phase 2's Testing section for
   on-device SQLCipher tests).
+- **Post-Phase-9 cleanup**: Phase 9's animation code (`PageActivityBehavior.FadeIn`, `LockPage`'s
+  `ShakeAsync`) and two `Shell.Current.DisplayAlert` call sites (`BackupViewModel`,
+  `FolderManagementViewModel`) briefly pushed the Android warning count from 27 to 38 — obsolete
+  `ViewExtensions.FadeTo`/`TranslateTo`/`Page.DisplayAlert` (`CS0618`, MAUI 10 deprecated these in
+  favor of `FadeToAsync`/`TranslateToAsync`/`DisplayAlertAsync`, same parameter lists) plus two
+  unresolved XML-doc `cref`s (`CS1574`) in `LoginFormViewModel`/`VaultItemFormViewModelBase` that
+  were missing their qualifying type name (`<see cref="Initialize"/>` needed to be
+  `VaultItemFormViewModelBase{TPayload}.Initialize`; `<see cref="Create{TPayload}"/>`/
+  `Update{TPayload}` needed the `IVaultItemRepository.` prefix already used by the neighboring
+  crefs in the same comment). Fixed by renaming to the `*Async` APIs and qualifying the two crefs
+  — both builds are back to their pre-existing warning counts: **27** on Android, **9** on iOS,
+  both entirely the `NU1608` family, 0 errors on either.
 - Both platform builds above were re-verified after Phase 3's `BiometricAuthService`
   implementations and the Phase 3 UI (`AppShell`, `App.xaml.cs`, `Views/`, `ViewModels/`) were
   added (same 0 errors, same pre-existing warning set on each platform).
