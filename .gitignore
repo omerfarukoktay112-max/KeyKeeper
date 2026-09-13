@@ -43,6 +43,10 @@ captures/
 *.keystore
 android/app/build/
 
+# Phase 11: release-signing keystore + its credentials -- never commit either. The .jks itself is
+# already covered by *.jks above; this covers the local-only file holding its passwords/alias.
+keystore/release-local.properties
+
 # Android emulator / AVD
 *.avd/
 *.qcow2

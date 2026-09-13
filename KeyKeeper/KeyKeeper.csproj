@@ -40,6 +40,16 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
+	<!-- Phase 11: Release hardening. R8 (not the legacy Proguard tool) shrinks and obfuscates the
+	     Java/Kotlin binding layer (AndroidX.Biometric and friends) in Release builds; it does not
+	     touch C# IL, so it cannot break System.Text.Json/DI reflection over KeyKeeper's own C#
+	     types (see ARCHITECTURE.md's Phase 11 section for why, and how that was verified on-device).
+	     Explicit rather than relying on the SDK's undocumented default so this survives an SDK
+	     upgrade. Android-only: iOS has no R8/Proguard equivalent. -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Release' AND $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<AndroidLinkTool>r8</AndroidLinkTool>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<!-- App Icon -->
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />

@@ -2183,6 +2183,208 @@ Evidence is in `docs/phase9-verification/`.
   available in this environment, the same limitation as every other iOS-only piece of this app
   since Phase 2.
 
+## Phase 11: Release hardening (Android-focused)
+
+Functional development (Phases 0-9) is done. This phase makes the Android build genuinely
+releasable: audits every prior phase's security claims against the actual code, turns on R8
+obfuscation, measures real device-class performance, produces a real signed APK/AAB, and replaces
+the last template placeholders (app icon, splash). iOS is verified only to the extent of "still
+compiles" — real Release signing/App Store prep is explicitly deferred, this phase's stated focus
+is Android. Autofill (the next functional phase) is untouched.
+
+### Security checklist — every prior phase's claim re-verified against the current code
+
+Each row was re-read from the actual file (not recalled from this document) during this phase:
+
+| Claim | Where | Verified |
+|---|---|---|
+| Argon2id, m=19456 KiB / t=2 / p=1 (OWASP row) | `Argon2Constants.cs` | Matches; unchanged since Phase 1 |
+| AES-256-GCM, fresh random nonce per call, packed `nonce\|\|ciphertext\|\|tag` | `AesGcmEncryptionService.cs` | Matches; unchanged since Phase 1 |
+| Master password verifier is HMAC-SHA256 of the derived key, constant-time compared, password/key never persisted | `MasterPasswordVerifier.cs` | Matches; unchanged since Phase 1 |
+| Biometric-unlock key wrapping is OS-secure-store-backed (`SecureStorage`/Keystore), Base64 only at that string-API boundary | `WrappedKeyStorage.cs` | Matches; unchanged since Phase 2 |
+| `FLAG_SECURE` set once in `MainActivity.OnCreate`, blocks screenshot/screen-record + recents thumbnail app-wide | `MainActivity.cs` | Matches; **also reconfirmed working on this phase's R8-obfuscated Release build** — `docs/phase11-verification/p11_01_vault_list_r8_release.png` is solid black, same signature as every Phase 7-9 screenshot attempt |
+| `allowBackup="false"` + `dataExtractionRules` (defense-in-depth) | `AndroidManifest.xml`, `Resources/xml/data_extraction_rules.xml` | Matches; unchanged since Phase 2/7 |
+| Root/device-security signals (su binaries, root-manager packages, test-keys tag, non-`user` build type, debugger-attached) | `DeviceSecurityChecker.cs` | Matches; unchanged since Phase 7 |
+
+**Debug/log output never carries sensitive data**: a project-wide search for every logging surface
+this codebase could use (`Console.*`, `Debug.*`, `Trace.*`, `Android.Util.Log`, `NSLog`,
+`ILogger`/`_logger`) across every `.cs` file returned **zero matches** — this app does not log
+anything, anywhere, sensitive or not. The only logging pipeline that exists at all is
+`builder.Logging.AddDebug()` in `MauiProgram.cs`, itself gated `#if DEBUG` (compiled out of Release
+entirely) and never fed a message referencing a password, key, or TOTP secret regardless. (The
+Argon2id timing instrumentation added and removed for this phase's performance measurement, below,
+was a temporary `#if PERF_MEASUREMENT`-gated `Console.WriteLine` of an elapsed-milliseconds number
+only — never the password or key itself — and was reverted before committing; it does not ship.)
+
+**ProGuard/R8 didn't silently break anything**: see "R8 obfuscation" below for what was actually at
+risk and how it was verified, not assumed.
+
+### R8 obfuscation
+
+Before this phase, `KeyKeeper.csproj` set no `AndroidLinkTool` at all for Release, and a Release
+`dotnet publish` produced no `mapping.txt` — R8 was not actually shrinking or obfuscating anything,
+despite Release builds otherwise looking complete (signed-looking `-Signed.apk`, non-trivial size).
+Added explicitly:
+
+```xml
+<PropertyGroup Condition="'$(Configuration)' == 'Release' AND $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+  <AndroidLinkTool>r8</AndroidLinkTool>
+</PropertyGroup>
+```
+
+**What R8 actually touches, and what it doesn't**: R8 (successor to the legacy `proguard` tool,
+which this SDK no longer supports as a distinct choice) shrinks and renames the **Java/Kotlin
+bytecode** of the Android binding layer this app pulls in (`Xamarin.AndroidX.Biometric` and its
+transitive AndroidX/Kotlin dependencies) — it does not touch C# IL at all. The separate mechanism
+that *could* affect C# reflection (`System.Text.Json.JsonSerializer.Deserialize<T>` for the five
+item payload types in `VaultItemRepository.cs`, and the backup format in `BackupService.cs`/
+`VaultBackupFile.cs`) is the .NET IL trimmer (`$(PublishTrimmed)`/`$(TrimMode)`), which this SDK
+already defaults to `true`/`partial` for Android Release independent of this phase's change — and
+was left at that default rather than disabled, because every `JsonSerializer.Deserialize<T>` call
+in this codebase passes a compile-time-known concrete type (`LoginItem`, `CardItem`, `WifiItem`,
+`SecureNoteItem`, `LicenseItem`, `VaultBackupPayload`, `VaultBackupHeader`) — exactly the pattern
+.NET's trimmer is designed to root correctly (it treats a generic type argument to a
+trimmer-annotated API as reachable). `BackupService.cs`'s one runtime-`Type`-based call
+(`JsonSerializer.SerializeToElement(i.Payload, i.Payload.GetType())`, used for the backup's
+per-item payload) looked riskier on paper, but the same five concrete types are already rooted
+elsewhere in the same assembly via the `Deserialize<T>` switch in `VaultItemRepository.cs` — there
+is no *additional* type this call could need that isn't already kept.
+
+**Verified, not just reasoned about**: a clean `dotnet publish -c Release -f net10.0-android
+-p:AndroidPackageFormat=apk` with `AndroidLinkTool=r8` produced a genuine
+`bin/Release/net10.0-android/mapping.txt` (~17 MB, thousands of renamed Java/Kotlin classes) —
+concrete proof R8's shrink+obfuscate pass actually ran, not merely configured. Grepping that
+mapping for this app's own JNI-registered classes (`MainActivity`, `BiometricAuthService`'s
+`AuthenticationCallback`) shows them mapped to **themselves** (`crc64....MainActivity ->
+crc64....MainActivity`) — the SDK's own built-in R8 keep rules already protect every JNI entry
+point automatically, without any hand-written `-keep` rule from this app. The resulting APK was
+then installed on the `pixel_7_-_api_36_0` emulator and driven manually (`docs/phase11-verification/`):
+vault setup, lock, master-password unlock, creating a Login item (title/username/password/TOTP
+secret) and a Card item, both reappearing correctly in the vault list after a fresh
+`VaultItemRepository.List()` reload (i.e. a real encrypt-then-later-decrypt-and-`JsonSerializer.
+Deserialize`-back round trip, post-R8, post-trim) — no crash, no `FATAL`/`AndroidRuntime` entry in
+`logcat` across the whole session. Every item-payload type shares the identical
+`Deserialize<T>`/reflection pattern, so this is treated as representative of all five, not just the
+two exercised directly; the `.vault`/CSV backup round trip (the one runtime-`Type` call) was not
+separately driven through the on-device Storage-Access-Framework file picker this phase (fragile to
+automate reliably, and already covered by the reachability argument above) — a reasonable follow-up
+if a future phase wants belt-and-braces confirmation.
+
+### Performance
+
+**Argon2id timing** (the OWASP `m=19456/t=2/p=1` row from Phase 1, unchanged) — measured on-device,
+not guessed: a temporary `#if PERF_MEASUREMENT`-gated `Stopwatch` around
+`Argon2idKeyDerivationService.DeriveKey`'s `GetBytes` call (added, measured via `adb logcat`, then
+fully reverted — see the Security checklist above) on the real Release/R8/AOT-compiled build,
+driven through the actual master-password unlock flow on the `pixel_7_-_api_36_0` emulator
+(`google_apis_playstore`, x86_64, hardware-accelerated — a reasonable mid-tier-device stand-in
+given the same emulator was already this codebase's standard "real device" proxy since Phase 3):
+
+```
+Argon2id derive: 457ms (cold, first call)
+Argon2id derive: 270ms
+Argon2id derive: 282ms
+```
+
+Comfortably inside (in fact below) the 0.5-1.5s target band — **no parameter tuning applied**;
+weakening `Argon2Constants` below the OWASP-recommended row to chase an even-faster number would be
+a security regression this phase has no reason to make. The `p=1` (single-lane) setting also means
+there's headroom to raise `Iterations` later if a future security review wants a higher cost
+without yet needing multi-core parallelism.
+
+**Large-vault list/search**: `VaultListViewModel.Load()` calls `IVaultItemRepository.List()`, which
+decrypts (AES-GCM) and JSON-deserializes every item's payload on every call — the one genuinely
+O(n)-per-item-decrypt path in this app; `ApplyFilters()` (search text, folder, tag, favorites) is a
+separate, cheap in-memory LINQ filter over that already-decrypted list (see that ViewModel's own
+doc comment) and was never a plausible bottleneck. Measured directly against the real
+`VaultItemRepository`/`VaultDatabaseService` production code (temporarily, via a throwaway xUnit
+`[Fact]` seeding 150 real encrypted `LoginItem`s through a temp SQLite file, timed, then reverted —
+same "measure for real, then remove the scaffolding" pattern as the Argon2id measurement above;
+desktop CPU, not the emulator, but the same managed AES-GCM/JSON code path that ships):
+**`List()` = 55ms for 150 items, in-memory filter = 3ms**. No perceptible lag at this scale;
+no optimization made, since none was needed.
+
+### Release build & signing
+
+A `keystore/` directory holds the release-signing keystore and its credentials, **entirely outside
+git**: `.gitignore` already excluded `*.jks`/`*.keystore` (pre-existing, since Phase 0), and this
+phase added an explicit rule for `keystore/release-local.properties` (the store/key
+passwords + alias) alongside it — neither the keystore file nor its passwords are ever meant to
+reach the repository, on this machine or any other. `keystore/keykeeper-release.jks` (self-signed,
+10000-day validity, RSA-2048, alias `keykeeper`, generated via `keytool -genkeypair`) is this
+machine's real release key going forward. **This keystore is the only thing that lets a future APK
+update the app already installed by this one** — losing it means every future release needs a new
+package identity (see the `ApplicationId` note below); whoever owns this project's release process
+should back `keystore/keykeeper-release.jks` and its password up somewhere durable and private
+(a password manager attachment, an encrypted archive — never this repo).
+
+Build/sign, from repo root (Windows CI or a release engineer's machine — the exact command this
+phase actually ran, credentials read from the gitignored properties file, never typed inline):
+
+```
+dotnet publish KeyKeeper/KeyKeeper.csproj -c Release -f net10.0-android \
+  -p:AndroidPackageFormat=apk \
+  -p:AndroidKeyStore=true \
+  -p:AndroidSigningKeyStore=<absolute path to keystore/keykeeper-release.jks> \
+  -p:AndroidSigningKeyAlias=keykeeper \
+  -p:AndroidSigningKeyPass=<password> \
+  -p:AndroidSigningStorePass=<password>
+```
+
+(`-p:AndroidPackageFormat=aab` for the Play-Store-submission bundle instead of a sideloadable APK —
+both were built and verified this phase.) Output lands in
+`KeyKeeper/bin/Release/net10.0-android/com.companyname.keykeeper-Signed.{apk,aab}`.
+`apksigner verify --print-certs` against the produced APK confirms it, confirming the certificate
+fingerprint matches `keytool -list`'s own report for `keykeeper-release.jks` — i.e. this is a real,
+verifiably-signed release artifact, not the SDK's auto-generated debug-like fallback keystore
+(which is what every earlier Release build in this repo's history was actually signed with,
+unnoticed, since `AndroidSigningKeyStore` was never set before).
+
+**`ApplicationId` is still the MAUI template default, `com.companyname.keykeeper`** — deliberately
+*not* changed by this phase, since the real reverse-DNS identifier a Play Store listing will use is
+a decision for whoever owns that listing (it must be owned/controlled by them, and — unlike almost
+everything else in this phase — is **permanent** once the first real release ships: changing it
+later means a new, unrelated app listing, not an update). Flagged here as the one remaining
+release-blocking decision that is not this phase's to make unilaterally.
+
+### App icon & splash screen
+
+Both were still the unmodified `dotnet new maui` template placeholder before this phase: `appicon.svg`
+a flat `#512BD4` rectangle, and `appiconfg.svg`/`splash.svg` the template's ".NET" wordmark glyph —
+present since the repo's initial commit, never revisited by any functional phase. Replaced
+`appiconfg.svg` and `splash.svg` with a simple white padlock mark (a rounded-rect body + arc
+shackle + a purple `#512BD4` keyhole cut-out matching `appicon.svg`'s background, so it reads as a
+punched hole once composited) — `appicon.svg`'s background rect and color were left as-is.
+Confirmed by screenshot (`docs/phase11-verification/p11_02_new_icon_splash.png` — the OS splash
+screen itself, shown before `MainActivity.OnCreate` sets `FLAG_SECURE`, so unlike every other
+screenshot in this app it isn't blocked) that the new glyph renders correctly through the standard
+MAUI resizetizer pipeline; the Release+R8 build compiled with 0 errors against it. `ApplicationTitle`
+("KeyKeeper") was already correct and untouched.
+
+### iOS: compile-only, unchanged this phase
+
+`dotnet build KeyKeeper/KeyKeeper.csproj -f net10.0-ios` — 0 errors, 9 warnings (the same
+pre-existing `NU1608` family as every prior phase) — confirming this phase's Android-only csproj
+change (`AndroidLinkTool`, scoped to `$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)'))
+== 'android'`) and the shared icon/splash SVG changes didn't regress the iOS target. Real iOS
+Release signing (provisioning profiles, an Apple Developer account, App Store Connect) needs
+Xcode/a Mac, unavailable in this environment, and was out of scope for this phase by explicit
+instruction — deferred, not attempted.
+
+### Tests
+
+`dotnet test KeyKeeper.Core.Tests` — 220/220 passing, unchanged (this phase touched no
+`KeyKeeper.Core` production logic; the two temporary measurement scaffolds — the Argon2id
+`Stopwatch` and the 150-item perf `[Fact]` — were both added and fully reverted, never committed).
+
+### Manual verification — Android emulator (`pixel_7_-_api_36_0`)
+
+All of the R8/JSON-round-trip and `FLAG_SECURE`-post-R8 verification above was driven for real on
+this emulator via `adb`/`uiautomator`, the same methodology established since Phase 3. Evidence in
+`docs/phase11-verification/`: `p11_01_vault_list_r8_release.png` (solid black — `FLAG_SECURE`
+confirmed still active on the signed Release build) and `p11_02_new_icon_splash.png` (the new
+padlock glyph, the one screen this app's own `FLAG_SECURE` doesn't cover).
+
 ## Explicitly out of scope so far
 - No dedicated tag-management screen (Phase 5) — tags are created inline from an item form's "Yeni
   etiket" field; renaming/deleting a tag entity or `ITagRepository.DeleteUnused` cleanup have no UI
@@ -2263,3 +2465,16 @@ Evidence is in `docs/phase9-verification/`.
   column) — spacing/padding differences between page *kinds* that already differ in purpose (e.g.
   Setup/Lock/SecurityWarning's centered 30/20 layout vs. the item-forms'/tool-pages' 20/16 field
   list) were reviewed and judged intentional, not inconsistencies to unify.
+- `ApplicationId` (Phase 11) is still `com.companyname.keykeeper`, the MAUI template default — see
+  that phase's "Release build & signing" section for why changing it is deliberately left as an
+  open decision, not an oversight.
+- No on-device `.vault`/CSV backup round trip driven through the Storage-Access-Framework file
+  picker on the R8-obfuscated Release build (Phase 11) — the one runtime-`Type`-based
+  `JsonSerializer` call this app makes (`BackupService.cs`) is covered by a reachability argument
+  (the same five payload types are already rooted via `VaultItemRepository.cs`'s
+  `Deserialize<T>` calls) rather than a driven end-to-end test; see Phase 11's R8 section.
+- iOS Release signing/App Store submission prep (provisioning profiles, an Apple Developer account,
+  TestFlight) has not been attempted (Phase 11, explicit instruction: Android-focused this phase) —
+  iOS remains verified compile-only, the same limitation as every phase since Phase 2.
+- No CI/CD pipeline automating the Phase 11 release build/sign steps — `dotnet publish` with the
+  signing properties is currently a manual, documented command a release engineer runs by hand.
