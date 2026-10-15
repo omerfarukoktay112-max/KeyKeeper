@@ -2579,6 +2579,26 @@ verifiably-signed release artifact, not the SDK's auto-generated debug-like fall
 (which is what every earlier Release build in this repo's history was actually signed with,
 unnoticed, since `AndroidSigningKeyStore` was never set before).
 
+> **Two ways to end up with a fake-"-Signed" APK — always run `apksigner verify --print-certs`
+> before installing, never trust the filename:**
+> 1. **Plain `dotnet build`/`publish -c Release` with no `-p:AndroidSigningKeyStore=...` etc.**
+>    silently falls back to the SDK's debug-like keystore. `apksigner verify --print-certs` will
+>    show `CN=Android Debug` instead of `CN=KeyKeeper, ...` — this is the exact failure mode
+>    (2026-09-13) that produced several `-Signed.apk` files debug-signed despite Release
+>    optimizations being on, and had to be cleaned up and rebuilt.
+> 2. **A stale/wrong `AndroidSigningKeyPass` in `keystore/release-local.properties`** makes the
+>    build's own internal signing step (`AndroidApkSigner`, which shells out to `java.exe`) fail
+>    with `MSB6006: "java.exe" exited with code 2` — but the *zip-aligned, still-unsigned*
+>    intermediate has already been copied to the final `-Signed.apk` path by an earlier target,
+>    so the build failure leaves behind a plausible-looking but completely unsigned file
+>    (`apksigner verify` reports `ERROR: Missing META-INF/MANIFEST.MF`). Fix: confirm the real key
+>    password with `keytool -list -v -keystore keystore/keykeeper-release.jks -storepass <pass>`
+>    (for this keystore, `keyPassword` == `storePassword`, not the separate value that was
+>    recorded in `release-local.properties`), then sign the leftover unsigned `-Signed.apk`
+>    directly — `apksigner sign --ks keystore/keykeeper-release.jks --ks-key-alias keykeeper
+>    --ks-pass pass:<pass> --key-pass pass:<pass> KeyKeeper/bin/Release/net10.0-android/
+>    com.companyname.keykeeper-Signed.apk` — rather than re-running the whole `dotnet publish`.
+
 **`ApplicationId` is still the MAUI template default, `com.companyname.keykeeper`** — deliberately
 *not* changed by this phase, since the real reverse-DNS identifier a Play Store listing will use is
 a decision for whoever owns that listing (it must be owned/controlled by them, and — unlike almost
