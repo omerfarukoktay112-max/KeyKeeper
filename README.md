@@ -7,12 +7,6 @@ encrypted vault that **never leaves your device**. There is no account, no cloud
 access and no telemetry. If you forget your master password, nobody (including the author) can
 recover your data. That is the point.
 
-<p>
-  <img src="docs/phase11-verification/p11_01_vault_list_r8_release.png" width="240" alt="Vault list">
-  <img src="docs/phase6-verification/p6_06_generated_password.png" width="240" alt="Password generator">
-  <img src="docs/phase5-verification/06-folder-filter-working.png" width="240" alt="Folder filtering">
-</p>
-
 ## Download
 
 Grab the signed APK from the [Releases page](../../releases/latest) and sideload it
@@ -26,6 +20,9 @@ Verify the download against the SHA-256 checksum listed in the release notes bef
 > has deliberately not been changed yet.
 
 ## Features
+
+**Languages**
+- **English** and **Turkish**, following the device language (English is the fallback). The v1.0 APK on the Releases page predates this and is Turkish-only; build from source for English until the next release.
 
 **Vault**
 - Five item types: **Logins**, **Cards**, **Wi-Fi networks**, **Secure notes**, **Software licenses**

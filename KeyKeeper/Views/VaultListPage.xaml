@@ -10,7 +10,7 @@
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="{x:Static loc:S.Add}" Command="{Binding AddCommand}" />
         <ToolbarItem Text="{x:Static loc:S.FoldersTitle}" Command="{Binding ManageFoldersCommand}" />
-        <ToolbarItem Text="{x:Static loc:S.GeneratePassword}" Command="{Binding OpenPasswordGeneratorCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.ToolbarGenerator}" Command="{Binding OpenPasswordGeneratorCommand}" />
         <ToolbarItem Text="{x:Static loc:S.BackupTitle}" Command="{Binding OpenBackupCommand}" />
         <ToolbarItem Text="{x:Static loc:S.SettingsTitle}" Command="{Binding OpenSettingsCommand}" />
         <ToolbarItem Text="{x:Static loc:S.Lock}" Command="{Binding LockCommand}" />

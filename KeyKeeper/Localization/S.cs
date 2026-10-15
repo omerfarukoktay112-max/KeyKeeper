@@ -171,4 +171,5 @@ public static class S
     public static string AutofillUnlockLabel => Get(nameof(AutofillUnlockLabel));
     public static string RemoveFromFavorites => Get(nameof(RemoveFromFavorites));
     public static string AddToFavorites => Get(nameof(AddToFavorites));
+    public static string ToolbarGenerator => Get(nameof(ToolbarGenerator));
 }

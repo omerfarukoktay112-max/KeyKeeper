@@ -159,4 +159,5 @@
   <data name="AutofillUnlockLabel" xml:space="preserve"><value>KeyKeeper ile aç 🔒</value></data>
   <data name="RemoveFromFavorites" xml:space="preserve"><value>Favorilerden çıkar</value></data>
   <data name="AddToFavorites" xml:space="preserve"><value>Favorilere ekle</value></data>
+  <data name="ToolbarGenerator" xml:space="preserve"><value>Şifre Üret</value></data>
 </root>

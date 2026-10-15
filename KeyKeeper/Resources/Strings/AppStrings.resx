@@ -159,4 +159,5 @@
   <data name="AutofillUnlockLabel" xml:space="preserve"><value>Unlock with KeyKeeper 🔒</value></data>
   <data name="RemoveFromFavorites" xml:space="preserve"><value>Remove from favorites</value></data>
   <data name="AddToFavorites" xml:space="preserve"><value>Add to favorites</value></data>
+  <data name="ToolbarGenerator" xml:space="preserve"><value>Generator</value></data>
 </root>
