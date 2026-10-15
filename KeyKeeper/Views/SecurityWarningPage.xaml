@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:KeyKeeper.Localization"
              xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
              x:Class="KeyKeeper.Views.SecurityWarningPage"
              x:DataType="viewmodels:SecurityWarningViewModel"
-             Title="Güvenlik Uyarısı">
+             Title="{x:Static loc:S.SecurityWarningTitle}">
 
     <ScrollView>
         <VerticalStackLayout Padding="30" Spacing="20" VerticalOptions="Center">
@@ -13,10 +14,10 @@
                 Text="⚠️"
                 FontSize="48"
                 HorizontalTextAlignment="Center"
-                SemanticProperties.Description="Uyarı" />
+                SemanticProperties.Description="{x:Static loc:S.Warning}" />
 
             <Label
-                Text="Güvenlik Uyarısı"
+                Text="{x:Static loc:S.SecurityWarningTitle}"
                 Style="{StaticResource Headline}"
                 HorizontalTextAlignment="Center" />
 
@@ -25,7 +26,7 @@
                 HorizontalTextAlignment="Center" />
 
             <Button
-                Text="Yine de Devam Et"
+                Text="{x:Static loc:S.ContinueAnyway}"
                 Command="{Binding ContinueCommand}"
                 HorizontalOptions="Fill" />
 

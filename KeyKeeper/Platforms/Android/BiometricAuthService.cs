@@ -4,6 +4,7 @@ using AndroidX.Fragment.App;
 using Java.Lang;
 using KeyKeeper.Core.Auth;
 using Microsoft.Maui.ApplicationModel;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.Services;
 
@@ -70,9 +71,9 @@ public sealed class BiometricAuthService : IBiometricAuthService
                 var prompt = new BiometricPrompt(activity, executor, callback);
 
                 BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
-                    .SetTitle("Kimlik Doğrulama")
+                    .SetTitle(S.BiometricPromptTitle)
                     .SetSubtitle(reason)
-                    .SetNegativeButtonText("İptal")
+                    .SetNegativeButtonText(S.Cancel)
                     .SetAllowedAuthenticators(AllowedAuthenticators)
                     .Build();
 

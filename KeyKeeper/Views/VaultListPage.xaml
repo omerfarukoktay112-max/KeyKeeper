@@ -1,32 +1,33 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:KeyKeeper.Localization"
              xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
              x:Class="KeyKeeper.Views.VaultListPage"
              x:DataType="viewmodels:VaultListViewModel"
-             Title="Kasa">
+             Title="{x:Static loc:S.VaultTitle}">
 
     <ContentPage.ToolbarItems>
-        <ToolbarItem Text="Ekle" Command="{Binding AddCommand}" />
-        <ToolbarItem Text="Klasörler" Command="{Binding ManageFoldersCommand}" />
-        <ToolbarItem Text="Şifre Üret" Command="{Binding OpenPasswordGeneratorCommand}" />
-        <ToolbarItem Text="Yedekleme" Command="{Binding OpenBackupCommand}" />
-        <ToolbarItem Text="Ayarlar" Command="{Binding OpenSettingsCommand}" />
-        <ToolbarItem Text="Kilitle" Command="{Binding LockCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.Add}" Command="{Binding AddCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.FoldersTitle}" Command="{Binding ManageFoldersCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.GeneratePassword}" Command="{Binding OpenPasswordGeneratorCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.BackupTitle}" Command="{Binding OpenBackupCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.SettingsTitle}" Command="{Binding OpenSettingsCommand}" />
+        <ToolbarItem Text="{x:Static loc:S.Lock}" Command="{Binding LockCommand}" />
     </ContentPage.ToolbarItems>
 
     <Grid RowDefinitions="Auto,*" Padding="0">
 
         <VerticalStackLayout Grid.Row="0" Padding="20,12" Spacing="8">
 
-            <SearchBar Placeholder="Ara (isim, kullanıcı adı, URL...)" Text="{Binding SearchText}" />
+            <SearchBar Placeholder="{x:Static loc:S.SearchPlaceholder}" Text="{Binding SearchText}" />
 
             <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
                 <HorizontalStackLayout Spacing="8" BindableLayout.ItemsSource="{Binding FolderFilterOptions}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="viewmodels:FolderFilterOptionViewModel">
                             <Border Style="{StaticResource FilterChipBorder}"
-                                    SemanticProperties.Description="{Binding DisplayName, StringFormat='Klasör filtresi: {0}'}">
+                                    SemanticProperties.Description="{Binding DisplayName, StringFormat={x:Static loc:S.FolderFilterDescription}}">
                                 <Border.Triggers>
                                     <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
                                         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}" />
@@ -50,7 +51,7 @@
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="viewmodels:TagChipViewModel">
                         <Border Style="{StaticResource TagChipBorder}"
-                                SemanticProperties.Description="{Binding Name, StringFormat='Etiket filtresi: {0}'}">
+                                SemanticProperties.Description="{Binding Name, StringFormat={x:Static loc:S.TagFilterDescription}}">
                             <Border.Triggers>
                                 <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
                                     <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}" />
@@ -69,11 +70,11 @@
 
             <HorizontalStackLayout Spacing="10">
                 <Switch IsToggled="{Binding FavoritesOnly}" />
-                <Label Text="Yalnızca favoriler" VerticalOptions="Center" />
+                <Label Text="{x:Static loc:S.FavoritesOnly}" VerticalOptions="Center" />
             </HorizontalStackLayout>
 
             <Button
-                Text="Biyometrik Kilidi Etkinleştir"
+                Text="{x:Static loc:S.EnableBiometric}"
                 Command="{Binding EnableBiometricUnlockCommand}"
                 IsVisible="{Binding IsBiometricAvailable}"
                 HorizontalOptions="Fill" />
@@ -95,7 +96,7 @@
                 Style="{StaticResource SubHeadline}"
                 HorizontalTextAlignment="Center" />
             <Button
-                Text="İlk Öğeni Ekle"
+                Text="{x:Static loc:S.AddFirstItem}"
                 Command="{Binding AddCommand}"
                 IsVisible="{Binding ShowAddFirstItemButton}"
                 HorizontalOptions="Center" />
@@ -110,7 +111,7 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:VaultItemListEntry">
                     <Grid Padding="16,12" ColumnDefinitions="48,*,44" ColumnSpacing="14"
-                          SemanticProperties.Description="{Binding Title, StringFormat='{0} öğesini aç'}">
+                          SemanticProperties.Description="{Binding Title, StringFormat={x:Static loc:S.OpenItemDescription}}">
                         <Grid.GestureRecognizers>
                             <TapGestureRecognizer
                                 Command="{Binding BindingContext.OpenCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
@@ -148,11 +149,11 @@
                             <Label.Triggers>
                                 <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="True">
                                     <Setter Property="Text" Value="⭐" />
-                                    <Setter Property="SemanticProperties.Description" Value="Favorilerden çıkar" />
+                                    <Setter Property="SemanticProperties.Description" Value="{x:Static loc:S.RemoveFromFavorites}" />
                                 </DataTrigger>
                                 <DataTrigger TargetType="Label" Binding="{Binding IsFavorite}" Value="False">
                                     <Setter Property="Text" Value="☆" />
-                                    <Setter Property="SemanticProperties.Description" Value="Favorilere ekle" />
+                                    <Setter Property="SemanticProperties.Description" Value="{x:Static loc:S.AddToFavorites}" />
                                 </DataTrigger>
                             </Label.Triggers>
                             <Label.GestureRecognizers>

@@ -11,6 +11,7 @@ using Android.Widget;
 using KeyKeeper.Core.Auth;
 using KeyKeeper.Core.Autofill;
 using KeyKeeper.Core.Data;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.Services;
 
@@ -121,7 +122,7 @@ public sealed class KeyKeeperAutofillService : AutofillService
             PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable)!;
 
         AutofillId[] authIds = fields.Select(f => f.Id).ToArray();
-        RemoteViews presentation = AutofillResponseBuilder.BuildPresentation("KeyKeeper ile aç 🔒");
+        RemoteViews presentation = AutofillResponseBuilder.BuildPresentation(S.AutofillUnlockLabel);
 
         return new FillResponse.Builder()
             .SetAuthentication(authIds, pendingIntent.IntentSender, presentation)

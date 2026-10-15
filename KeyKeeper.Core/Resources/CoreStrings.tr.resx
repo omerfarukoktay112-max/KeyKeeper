@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="BiometricReason" xml:space="preserve"><value>Kasayı açmak için kimliğinizi doğrulayın</value></data>
+  <data name="ExportWrongPassword" xml:space="preserve"><value>Ana parola yanlış.</value></data>
+  <data name="ImportWrongPassword" xml:space="preserve"><value>Ana parola yanlış ya da dosya bozulmuş.</value></data>
+  <data name="CorruptEncryptedBlock" xml:space="preserve"><value>Şifreli veri bloğu bozulmuş veya eksik.</value></data>
+  <data name="EmptyBackupContent" xml:space="preserve"><value>Yedek içeriği boş; dosya bozulmuş olabilir.</value></data>
+  <data name="BackupUnreadable" xml:space="preserve"><value>Yedek içeriği okunamadı: {0}</value></data>
+  <data name="FileTooShort" xml:space="preserve"><value>Dosya çok kısa; geçerli bir KeyKeeper yedek dosyası değil.</value></data>
+  <data name="FileSignatureUnknown" xml:space="preserve"><value>Dosya imzası tanınmadı; geçerli bir KeyKeeper yedek dosyası değil.</value></data>
+  <data name="FileTruncated" xml:space="preserve"><value>Dosya kısaltılmış veya bozulmuş görünüyor.</value></data>
+  <data name="HeaderUnreadable" xml:space="preserve"><value>Yedek başlığı okunamadı; dosya bozulmuş olabilir.</value></data>
+  <data name="HeaderEmpty" xml:space="preserve"><value>Yedek başlığı boş; dosya bozulmuş olabilir.</value></data>
+  <data name="NoEncryptedData" xml:space="preserve"><value>Yedek dosyasında şifreli veri bulunamadı.</value></data>
+</root>

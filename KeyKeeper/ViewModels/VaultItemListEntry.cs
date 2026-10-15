@@ -1,5 +1,6 @@
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Localization;
 using Microsoft.Maui.Graphics;
 
 namespace KeyKeeper.ViewModels;
@@ -37,7 +38,7 @@ public sealed record VaultItemListEntry(
             LoginItem l => (l.Title, l.Username ?? string.Empty),
             CardItem c => (c.Title, MaskCardNumber(c.CardNumber)),
             WifiItem w => (w.Title, w.Ssid),
-            SecureNoteItem n => (n.Title, "Güvenli not"),
+            SecureNoteItem n => (n.Title, S.SecureNoteType),
             LicenseItem lic => (lic.Title, lic.SoftwareName ?? string.Empty),
             _ => (record.Id, string.Empty),
         };

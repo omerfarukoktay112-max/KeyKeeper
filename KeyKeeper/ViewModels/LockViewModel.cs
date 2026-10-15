@@ -4,6 +4,7 @@ using KeyKeeper.Core.Auth;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
 using Microsoft.Maui.Dispatching;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -87,7 +88,7 @@ public sealed partial class LockViewModel : ObservableObject
         }
         catch (VaultDatabaseException)
         {
-            ErrorMessage = "Kasa açılamadı. Veri bozulmuş olabilir.";
+            ErrorMessage = S.VaultOpenFailed;
         }
         finally
         {
@@ -124,7 +125,7 @@ public sealed partial class LockViewModel : ObservableObject
                 break;
 
             case AuthenticationResultKind.WrongPassword:
-                ErrorMessage = $"Yanlış şifre ({result.FailedAttemptCount}. yanlış deneme).";
+                ErrorMessage = S.F(S.WrongPasswordAttempt, result.FailedAttemptCount);
                 if (result.RemainingLockout is { } wrongPasswordLockout)
                 {
                     StartLockoutCountdown(wrongPasswordLockout);
@@ -133,7 +134,7 @@ public sealed partial class LockViewModel : ObservableObject
                 break;
 
             case AuthenticationResultKind.LockedOut:
-                ErrorMessage = "Çok fazla yanlış deneme yapıldı.";
+                ErrorMessage = S.TooManyAttempts;
                 if (result.RemainingLockout is { } lockedOutRemaining)
                 {
                     StartLockoutCountdown(lockedOutRemaining);
@@ -143,11 +144,11 @@ public sealed partial class LockViewModel : ObservableObject
 
             case AuthenticationResultKind.BiometricUnavailable:
                 IsBiometricAvailable = false;
-                ErrorMessage = "Biyometrik kimlik doğrulama şu anda kullanılamıyor.";
+                ErrorMessage = S.BiometricUnavailable;
                 break;
 
             case AuthenticationResultKind.BiometricFailed:
-                ErrorMessage = "Biyometrik doğrulama başarısız oldu veya iptal edildi.";
+                ErrorMessage = S.BiometricFailed;
                 break;
         }
     }

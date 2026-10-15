@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Save" xml:space="preserve"><value>Save</value></data>
+  <data name="Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="CancelAction" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Show" xml:space="preserve"><value>Show</value></data>
+  <data name="Add" xml:space="preserve"><value>Add</value></data>
+  <data name="Generate" xml:space="preserve"><value>Generate</value></data>
+  <data name="FieldTitle" xml:space="preserve"><value>Title</value></data>
+  <data name="Folder" xml:space="preserve"><value>Folder</value></data>
+  <data name="Tags" xml:space="preserve"><value>Tags</value></data>
+  <data name="NewTag" xml:space="preserve"><value>New tag</value></data>
+  <data name="TagDescription" xml:space="preserve"><value>Tag: {0}</value></data>
+  <data name="RemoveTagDescription" xml:space="preserve"><value>Remove tag: {0}</value></data>
+  <data name="FoldersTitle" xml:space="preserve"><value>Folders</value></data>
+  <data name="NewFolderName" xml:space="preserve"><value>New folder name</value></data>
+  <data name="ParentFolder" xml:space="preserve"><value>Parent folder</value></data>
+  <data name="CreateFolder" xml:space="preserve"><value>Create Folder</value></data>
+  <data name="NoFoldersYet" xml:space="preserve"><value>No folders yet.</value></data>
+  <data name="Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="BackupTitle" xml:space="preserve"><value>Backup</value></data>
+  <data name="MasterPasswordLabel" xml:space="preserve"><value>Master Password</value></data>
+  <data name="BackupPasswordPlaceholder" xml:space="preserve"><value>Enter your master password for each action below</value></data>
+  <data name="CreateBackup" xml:space="preserve"><value>Create Backup (.vault)</value></data>
+  <data name="CreateBackupDesc" xml:space="preserve"><value>Creates an encrypted, portable copy of your entire vault.</value></data>
+  <data name="RestoreBackup" xml:space="preserve"><value>Restore from Backup</value></data>
+  <data name="RestoreBackupDesc" xml:space="preserve"><value>Choose a .vault file -- the entire contents of your current vault will be REPLACED by the file&apos;s contents.</value></data>
+  <data name="ExportCsv" xml:space="preserve"><value>Export as CSV</value></data>
+  <data name="ExportCsvDesc" xml:space="preserve"><value>Exports everything, including all your passwords, as UNENCRYPTED plain text. Use only when necessary.</value></data>
+  <data name="ExportCsvWarning" xml:space="preserve"><value>Export as CSV (Warning)</value></data>
+  <data name="VaultLocked" xml:space="preserve"><value>Vault Locked</value></data>
+  <data name="MasterPasswordPlaceholder" xml:space="preserve"><value>Master password</value></data>
+  <data name="RemainingTime" xml:space="preserve"><value>Time remaining: {0}</value></data>
+  <data name="Unlock" xml:space="preserve"><value>Unlock</value></data>
+  <data name="UnlockBiometric" xml:space="preserve"><value>Unlock with Biometrics</value></data>
+  <data name="LicenseTitle" xml:space="preserve"><value>License</value></data>
+  <data name="SoftwareName" xml:space="preserve"><value>Software / organization name</value></data>
+  <data name="LicenseKey" xml:space="preserve"><value>License key</value></data>
+  <data name="HasExpiry" xml:space="preserve"><value>Has an expiry date</value></data>
+  <data name="NoteTitle" xml:space="preserve"><value>Secure Note</value></data>
+  <data name="NotePlaceholder" xml:space="preserve"><value>Note</value></data>
+  <data name="CardTitle" xml:space="preserve"><value>Card</value></data>
+  <data name="CardholderName" xml:space="preserve"><value>Name on card</value></data>
+  <data name="CardNumber" xml:space="preserve"><value>Card number</value></data>
+  <data name="ExpiryMonth" xml:space="preserve"><value>Month (MM)</value></data>
+  <data name="ExpiryYear" xml:space="preserve"><value>Year (YYYY)</value></data>
+  <data name="CardType" xml:space="preserve"><value>Card type</value></data>
+  <data name="CardTypeOther" xml:space="preserve"><value>Other</value></data>
+  <data name="LoginTitle" xml:space="preserve"><value>Login</value></data>
+  <data name="Username" xml:space="preserve"><value>Username</value></data>
+  <data name="Password" xml:space="preserve"><value>Password</value></data>
+  <data name="TotpSecret" xml:space="preserve"><value>TOTP secret (optional)</value></data>
+  <data name="SecondsShort" xml:space="preserve"><value>{0}s</value></data>
+  <data name="GeneratorTitle" xml:space="preserve"><value>Password Generator</value></data>
+  <data name="Length" xml:space="preserve"><value>Length</value></data>
+  <data name="Uppercase" xml:space="preserve"><value>Uppercase (A-Z)</value></data>
+  <data name="Lowercase" xml:space="preserve"><value>Lowercase (a-z)</value></data>
+  <data name="Digits" xml:space="preserve"><value>Digits (0-9)</value></data>
+  <data name="Symbols" xml:space="preserve"><value>Symbols (!@#$...)</value></data>
+  <data name="ExcludeAmbiguous" xml:space="preserve"><value>Exclude ambiguous characters (0/O, 1/l/I...)</value></data>
+  <data name="GeneratePassword" xml:space="preserve"><value>Generate Password</value></data>
+  <data name="SetupTitle" xml:space="preserve"><value>Vault Setup</value></data>
+  <data name="Welcome" xml:space="preserve"><value>Welcome to KeyKeeper</value></data>
+  <data name="SetupIntro" xml:space="preserve"><value>Choose a master password to protect your vault. It is stored nowhere — if you forget it, the data in the vault cannot be recovered.</value></data>
+  <data name="ConfirmMasterPassword" xml:space="preserve"><value>Master password (again)</value></data>
+  <data name="CreateVault" xml:space="preserve"><value>Create Vault</value></data>
+  <data name="SecurityWarningTitle" xml:space="preserve"><value>Security Warning</value></data>
+  <data name="Warning" xml:space="preserve"><value>Warning</value></data>
+  <data name="ContinueAnyway" xml:space="preserve"><value>Continue Anyway</value></data>
+  <data name="SettingsTitle" xml:space="preserve"><value>Settings</value></data>
+  <data name="Autofill" xml:space="preserve"><value>Autofill</value></data>
+  <data name="AutofillDesc" xml:space="preserve"><value>When enabled, KeyKeeper offers to fill your saved logins in other apps and in the browser. If the vault is locked, KeyKeeper&apos;s own lock screen opens first.</value></data>
+  <data name="OpenAutofillSettings" xml:space="preserve"><value>Open Autofill Settings</value></data>
+  <data name="WifiTitle" xml:space="preserve"><value>Wi-Fi</value></data>
+  <data name="NetworkName" xml:space="preserve"><value>Network name (SSID)</value></data>
+  <data name="SecurityProtocol" xml:space="preserve"><value>Security protocol</value></data>
+  <data name="WifiOpen" xml:space="preserve"><value>Open (no password)</value></data>
+  <data name="HiddenNetwork" xml:space="preserve"><value>Hidden network</value></data>
+  <data name="VaultTitle" xml:space="preserve"><value>Vault</value></data>
+  <data name="Lock" xml:space="preserve"><value>Lock</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>Search (name, username, URL...)</value></data>
+  <data name="FolderFilterDescription" xml:space="preserve"><value>Folder filter: {0}</value></data>
+  <data name="TagFilterDescription" xml:space="preserve"><value>Tag filter: {0}</value></data>
+  <data name="FavoritesOnly" xml:space="preserve"><value>Favorites only</value></data>
+  <data name="EnableBiometric" xml:space="preserve"><value>Enable Biometric Unlock</value></data>
+  <data name="AddFirstItem" xml:space="preserve"><value>Add Your First Item</value></data>
+  <data name="OpenItemDescription" xml:space="preserve"><value>Open {0}</value></data>
+  <data name="BackupVerifyingAndEncrypting" xml:space="preserve"><value>Verifying master password and encrypting backup... (this may take a few seconds)</value></data>
+  <data name="SaveBackupTitle" xml:space="preserve"><value>Save KeyKeeper Backup</value></data>
+  <data name="BackupCreated" xml:space="preserve"><value>Backup created.</value></data>
+  <data name="VaultLockedRetry" xml:space="preserve"><value>The vault was locked. Please unlock it and try again.</value></data>
+  <data name="EnterMasterPassword" xml:space="preserve"><value>Please enter your master password.</value></data>
+  <data name="PickBackupFileTitle" xml:space="preserve"><value>Select the backup file (.vault)</value></data>
+  <data name="FilePickFailed" xml:space="preserve"><value>Could not select the file.</value></data>
+  <data name="ReadingBackup" xml:space="preserve"><value>Reading and verifying the backup file...</value></data>
+  <data name="VaultWillBeReplacedTitle" xml:space="preserve"><value>Vault Will Be Replaced</value></data>
+  <data name="ImportConfirmMessage" xml:space="preserve"><value>{0} items, {1} folders and {2} tags will be imported. ALL contents of your current vault will be deleted and replaced by them. This CANNOT be undone.</value></data>
+  <data name="Import" xml:space="preserve"><value>Import</value></data>
+  <data name="ImportCancelled" xml:space="preserve"><value>Import cancelled.</value></data>
+  <data name="Importing" xml:space="preserve"><value>Importing...</value></data>
+  <data name="ImportSuccess" xml:space="preserve"><value>Backup imported successfully.</value></data>
+  <data name="FileReadFailed" xml:space="preserve"><value>Could not read the file.</value></data>
+  <data name="PlaintextExportTitle" xml:space="preserve"><value>Unencrypted Export</value></data>
+  <data name="PlaintextExportMessage" xml:space="preserve"><value>This CSV file will contain all your passwords and other secrets as UNENCRYPTED plain text. The file may sit unprotected wherever you save or share it. Do you still want to continue?</value></data>
+  <data name="Continue" xml:space="preserve"><value>Continue</value></data>
+  <data name="VerifyingMasterPassword" xml:space="preserve"><value>Verifying master password...</value></data>
+  <data name="WrongMasterPassword" xml:space="preserve"><value>Wrong master password.</value></data>
+  <data name="SaveCsvTitle" xml:space="preserve"><value>Save KeyKeeper CSV Export</value></data>
+  <data name="CsvExported" xml:space="preserve"><value>CSV exported.</value></data>
+  <data name="RootFolder" xml:space="preserve"><value>Root folder (no parent)</value></data>
+  <data name="EnterFolderName" xml:space="preserve"><value>Enter a folder name.</value></data>
+  <data name="RenameFolderTitle" xml:space="preserve"><value>Rename Folder</value></data>
+  <data name="NewNamePrompt" xml:space="preserve"><value>New name:</value></data>
+  <data name="DeleteFolderTitle" xml:space="preserve"><value>Delete folder?</value></data>
+  <data name="DeleteFolderMessage" xml:space="preserve"><value>The folder &quot;{0}&quot; (and any subfolders) will be deleted. Items inside are not deleted; they become unfiled.</value></data>
+  <data name="VaultOpenFailed" xml:space="preserve"><value>The vault could not be opened. The data may be corrupted.</value></data>
+  <data name="WrongPasswordAttempt" xml:space="preserve"><value>Wrong password (failed attempt #{0}).</value></data>
+  <data name="TooManyAttempts" xml:space="preserve"><value>Too many failed attempts.</value></data>
+  <data name="BiometricUnavailable" xml:space="preserve"><value>Biometric authentication is currently unavailable.</value></data>
+  <data name="BiometricFailed" xml:space="preserve"><value>Biometric authentication failed or was cancelled.</value></data>
+  <data name="TotpInvalid" xml:space="preserve"><value>The TOTP secret is not a valid Base32 value.</value></data>
+  <data name="ClipboardCopied" xml:space="preserve"><value>Copied to clipboard; it will be cleared in {0} seconds.</value></data>
+  <data name="StrengthWeak" xml:space="preserve"><value>Weak</value></data>
+  <data name="StrengthMedium" xml:space="preserve"><value>Fair</value></data>
+  <data name="StrengthStrong" xml:space="preserve"><value>Strong</value></data>
+  <data name="StrengthVeryStrong" xml:space="preserve"><value>Very Strong</value></data>
+  <data name="ReasonRoot" xml:space="preserve"><value>signs that your device may be rooted or jailbroken</value></data>
+  <data name="ReasonDebugger" xml:space="preserve"><value>a debugger attached to the app</value></data>
+  <data name="ReasonJoiner" xml:space="preserve"><value> and</value></data>
+  <data name="SecurityWarningMessage" xml:space="preserve"><value>Detected on this device: {0}. This may have weakened the operating-system security protections your vault relies on (e.g. hardware-backed key storage). Whether to continue is up to you.</value></data>
+  <data name="AutofillActive" xml:space="preserve"><value>KeyKeeper is currently selected as the system autofill service.</value></data>
+  <data name="AutofillInactive" xml:space="preserve"><value>KeyKeeper is not currently selected as the autofill service.</value></data>
+  <data name="PasswordTooShort" xml:space="preserve"><value>The master password must be at least {0} characters.</value></data>
+  <data name="PasswordsMismatch" xml:space="preserve"><value>Passwords do not match.</value></data>
+  <data name="VaultCreateFailed" xml:space="preserve"><value>Could not create the vault. Please try again.</value></data>
+  <data name="VaultAlreadySetup" xml:space="preserve"><value>The vault is already set up.</value></data>
+  <data name="ItemNotFound" xml:space="preserve"><value>Item not found.</value></data>
+  <data name="Unfiled" xml:space="preserve"><value>Unfiled</value></data>
+  <data name="EnterTitle" xml:space="preserve"><value>Enter a title.</value></data>
+  <data name="SaveFailed" xml:space="preserve"><value>Could not save. Please try again.</value></data>
+  <data name="SecureNoteType" xml:space="preserve"><value>Secure note</value></data>
+  <data name="EmptyNoItems" xml:space="preserve"><value>No items yet. Add your first item to get started.</value></data>
+  <data name="NoResultsFor" xml:space="preserve"><value>No results for &quot;{0}&quot;.</value></data>
+  <data name="EmptyFolder" xml:space="preserve"><value>No items in this folder yet.</value></data>
+  <data name="EmptyUnfiled" xml:space="preserve"><value>No unfiled items.</value></data>
+  <data name="EmptyFilters" xml:space="preserve"><value>No items match these filters.</value></data>
+  <data name="FilterAll" xml:space="preserve"><value>All</value></data>
+  <data name="BiometricEnabled" xml:space="preserve"><value>Biometric unlock enabled.</value></data>
+  <data name="NewItem" xml:space="preserve"><value>New item</value></data>
+  <data name="DeleteItemTitle" xml:space="preserve"><value>Delete?</value></data>
+  <data name="DeleteItemMessage" xml:space="preserve"><value>This item will be permanently deleted.</value></data>
+  <data name="BiometricPromptTitle" xml:space="preserve"><value>Authentication</value></data>
+  <data name="AutofillUnlockLabel" xml:space="preserve"><value>Unlock with KeyKeeper 🔒</value></data>
+  <data name="RemoveFromFavorites" xml:space="preserve"><value>Remove from favorites</value></data>
+  <data name="AddToFavorites" xml:space="preserve"><value>Add to favorites</value></data>
+</root>

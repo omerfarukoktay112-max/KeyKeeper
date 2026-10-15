@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Auth;
 using KeyKeeper.Core.Security;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -47,18 +48,15 @@ public sealed partial class SecurityWarningViewModel : ObservableObject
         var reasons = new List<string>();
         if (warning.IsRootedOrJailbroken)
         {
-            reasons.Add("cihazınızın root/jailbreak yapılmış olabileceğine dair belirtiler");
+            reasons.Add(S.ReasonRoot);
         }
 
         if (warning.IsDebuggerAttached)
         {
-            reasons.Add("uygulamaya bağlı bir hata ayıklayıcı (debugger)");
+            reasons.Add(S.ReasonDebugger);
         }
 
-        Message =
-            $"Bu cihazda {string.Join(" ve ", reasons)} tespit edildi. Bu durum, kasanızın " +
-            "dayandığı işletim sistemi güvenlik korumalarını (ör. donanım destekli anahtar " +
-            "depolama) zayıflatmış olabilir. Devam etmek size kalmıştır.";
+        Message = S.F(S.SecurityWarningMessage, string.Join(S.ReasonJoiner, reasons));
     }
 
     [RelayCommand]

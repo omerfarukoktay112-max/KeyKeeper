@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:KeyKeeper.Localization"
              xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
              x:Class="KeyKeeper.Views.FolderManagementPage"
              x:DataType="viewmodels:FolderManagementViewModel"
-             Title="Klasörler">
+             Title="{x:Static loc:S.FoldersTitle}">
 
     <Grid RowDefinitions="Auto,Auto,*" Padding="20" RowSpacing="12">
 
         <VerticalStackLayout Grid.Row="0" Spacing="8">
-            <Entry Placeholder="Yeni klasör adı" Text="{Binding NewFolderName}" />
-            <Picker Title="Üst klasör" ItemsSource="{Binding ParentOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedParentOption}" />
-            <Button Text="Klasör Oluştur" Command="{Binding CreateFolderCommand}" HorizontalOptions="Fill" />
+            <Entry Placeholder="{x:Static loc:S.NewFolderName}" Text="{Binding NewFolderName}" />
+            <Picker Title="{x:Static loc:S.ParentFolder}" ItemsSource="{Binding ParentOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedParentOption}" />
+            <Button Text="{x:Static loc:S.CreateFolder}" Command="{Binding CreateFolderCommand}" HorizontalOptions="Fill" />
             <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" />
         </VerticalStackLayout>
 
@@ -19,16 +20,16 @@
 
         <CollectionView Grid.Row="2" ItemsSource="{Binding Folders}" x:DataType="viewmodels:FolderManagementViewModel">
             <CollectionView.EmptyView>
-                <Label Text="Henüz klasör yok." Style="{StaticResource SubHeadline}" Padding="0,30" />
+                <Label Text="{x:Static loc:S.NoFoldersYet}" Style="{StaticResource SubHeadline}" Padding="0,30" />
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:FolderListEntry">
                     <Grid Padding="0,10" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                         <Label Grid.Column="0" Text="{Binding DisplayName}" VerticalOptions="Center" />
-                        <Button Grid.Column="1" Text="Yeniden Adlandır"
+                        <Button Grid.Column="1" Text="{x:Static loc:S.Rename}"
                                 Command="{Binding BindingContext.RenameCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
                                 CommandParameter="{Binding .}" />
-                        <Button Grid.Column="2" Text="Sil" Style="{StaticResource DangerButton}"
+                        <Button Grid.Column="2" Text="{x:Static loc:S.Delete}" Style="{StaticResource DangerButton}"
                                 Command="{Binding BindingContext.DeleteCommand, Source={RelativeSource AncestorType={x:Type CollectionView}}}"
                                 CommandParameter="{Binding .}" />
                     </Grid>

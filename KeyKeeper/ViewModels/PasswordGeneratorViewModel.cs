@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Tools;
+using KeyKeeper.Localization;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Graphics;
 
@@ -155,7 +156,7 @@ public sealed partial class PasswordGeneratorViewModel : ObservableObject
             remaining = TimeSpan.Zero;
         }
 
-        ClipboardStatus = $"Panoya kopyalandı, {(int)Math.Ceiling(remaining.TotalSeconds)} saniye sonra temizlenecek.";
+        ClipboardStatus = S.F(S.ClipboardCopied, (int)Math.Ceiling(remaining.TotalSeconds));
     }
 
     /// <summary>Call from the page's <c>OnDisappearing</c> so the 1-second countdown timer

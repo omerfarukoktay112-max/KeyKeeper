@@ -5,6 +5,7 @@ using KeyKeeper.Core.Models;
 using KeyKeeper.Core.Tools;
 using Microsoft.Maui.Dispatching;
 using Microsoft.Maui.Graphics;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -155,7 +156,7 @@ public sealed partial class LoginFormViewModel : VaultItemFormViewModelBase<Logi
         catch (ArgumentException)
         {
             TotpDisplayCode = null;
-            TotpError = "TOTP anahtarı geçerli bir Base32 değeri değil.";
+            TotpError = S.TotpInvalid;
             _totpTimer?.Stop();
         }
     }

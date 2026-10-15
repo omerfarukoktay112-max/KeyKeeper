@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Autofill;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -26,8 +27,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool isAutofillEnabled;
 
     public string AutofillStatusMessage => IsAutofillEnabled
-        ? "KeyKeeper şu anda sistemin otomatik doldurma servisi olarak seçili."
-        : "KeyKeeper şu anda otomatik doldurma servisi olarak seçili değil.";
+        ? S.AutofillActive
+        : S.AutofillInactive;
 
     /// <summary>Call from <c>OnAppearing</c> — the user may have changed this in system settings
     /// and come straight back, same "refresh on every appear, not just the first" reasoning as

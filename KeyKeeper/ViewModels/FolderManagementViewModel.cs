@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Services;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -67,7 +68,7 @@ public sealed partial class FolderManagementViewModel : ObservableObject
 
         string? previouslySelectedParentId = SelectedParentOption?.Id;
         ParentOptions.Clear();
-        ParentOptions.Add(new FolderPickerOption(null, "Kök klasör (üst klasör yok)"));
+        ParentOptions.Add(new FolderPickerOption(null, S.RootFolder));
         foreach (IndentedFolder folder in flattened)
         {
             ParentOptions.Add(new FolderPickerOption(folder.Id, folder.DisplayName));
@@ -82,7 +83,7 @@ public sealed partial class FolderManagementViewModel : ObservableObject
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(NewFolderName))
         {
-            ErrorMessage = "Bir klasör adı girin.";
+            ErrorMessage = S.EnterFolderName;
             return;
         }
 
@@ -96,7 +97,7 @@ public sealed partial class FolderManagementViewModel : ObservableObject
     [RelayCommand]
     private async Task RenameAsync(FolderListEntry entry)
     {
-        string? newName = await Shell.Current.DisplayPromptAsync("Klasörü Yeniden Adlandır", "Yeni ad:", initialValue: entry.Name);
+        string? newName = await Shell.Current.DisplayPromptAsync(S.RenameFolderTitle, S.NewNamePrompt, initialValue: entry.Name);
         if (string.IsNullOrWhiteSpace(newName) || newName == entry.Name)
         {
             return;
@@ -112,10 +113,10 @@ public sealed partial class FolderManagementViewModel : ObservableObject
     private async Task DeleteAsync(FolderListEntry entry)
     {
         bool confirmed = await Shell.Current.DisplayAlertAsync(
-            "Klasör silinsin mi?",
-            $"\"{entry.Name}\" klasörü (ve varsa alt klasörleri) silinecek. İçindeki öğeler silinmez, klasörsüz duruma geçer.",
-            "Sil",
-            "Vazgeç");
+            S.DeleteFolderTitle,
+            S.F(S.DeleteFolderMessage, entry.Name),
+            S.Delete,
+            S.CancelAction);
         if (!confirmed)
         {
             return;
@@ -142,7 +143,7 @@ public sealed partial class FolderManagementViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
         {
-            ErrorMessage = "Kasa kilitlendi. Lütfen tekrar açıp deneyin.";
+            ErrorMessage = S.VaultLockedRetry;
             return false;
         }
     }

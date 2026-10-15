@@ -7,6 +7,7 @@ using KeyKeeper.Core.Models;
 using KeyKeeper.Core.Tools;
 using KeyKeeper.Services;
 using Microsoft.Maui.Dispatching;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -155,7 +156,7 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
             remaining = TimeSpan.Zero;
         }
 
-        ClipboardStatus = $"Panoya kopyalandı, {(int)Math.Ceiling(remaining.TotalSeconds)} saniye sonra temizlenecek.";
+        ClipboardStatus = S.F(S.ClipboardCopied, (int)Math.Ceiling(remaining.TotalSeconds));
     }
 
     /// <summary>Call from the page's <c>OnDisappearing</c> so the 1-second countdown timer
@@ -209,7 +210,7 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
             }
             else
             {
-                ErrorMessage = "Öğe bulunamadı.";
+                ErrorMessage = S.ItemNotFound;
             }
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
@@ -222,7 +223,7 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
     private void LoadFolderOptions()
     {
         FolderOptions.Clear();
-        FolderOptions.Add(new FolderPickerOption(null, "Klasörsüz"));
+        FolderOptions.Add(new FolderPickerOption(null, S.Unfiled));
         foreach (IndentedFolder folder in FolderTreeFlattener.Flatten(_folders.ListAll()))
         {
             FolderOptions.Add(new FolderPickerOption(folder.Id, folder.DisplayName));
@@ -249,7 +250,7 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
         TPayload payload = BuildPayload();
         if (string.IsNullOrWhiteSpace(payload.Title))
         {
-            ErrorMessage = "Bir başlık girin.";
+            ErrorMessage = S.EnterTitle;
             return;
         }
 
@@ -273,7 +274,7 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException or VaultCryptographyException)
         {
-            ErrorMessage = "Kaydedilemedi. Lütfen tekrar deneyin.";
+            ErrorMessage = S.SaveFailed;
         }
         finally
         {
@@ -309,7 +310,7 @@ public abstract partial class VaultItemFormViewModelBase<TPayload> : ObservableO
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
         {
-            ErrorMessage = "Kasa kilitlendi. Lütfen tekrar açıp deneyin.";
+            ErrorMessage = S.VaultLockedRetry;
             return;
         }
 

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Save" xml:space="preserve"><value>Kaydet</value></data>
+  <data name="Delete" xml:space="preserve"><value>Sil</value></data>
+  <data name="Cancel" xml:space="preserve"><value>İptal</value></data>
+  <data name="CancelAction" xml:space="preserve"><value>Vazgeç</value></data>
+  <data name="Copy" xml:space="preserve"><value>Kopyala</value></data>
+  <data name="Show" xml:space="preserve"><value>Göster</value></data>
+  <data name="Add" xml:space="preserve"><value>Ekle</value></data>
+  <data name="Generate" xml:space="preserve"><value>Üret</value></data>
+  <data name="FieldTitle" xml:space="preserve"><value>Başlık</value></data>
+  <data name="Folder" xml:space="preserve"><value>Klasör</value></data>
+  <data name="Tags" xml:space="preserve"><value>Etiketler</value></data>
+  <data name="NewTag" xml:space="preserve"><value>Yeni etiket</value></data>
+  <data name="TagDescription" xml:space="preserve"><value>Etiket: {0}</value></data>
+  <data name="RemoveTagDescription" xml:space="preserve"><value>Etiketi kaldır: {0}</value></data>
+  <data name="FoldersTitle" xml:space="preserve"><value>Klasörler</value></data>
+  <data name="NewFolderName" xml:space="preserve"><value>Yeni klasör adı</value></data>
+  <data name="ParentFolder" xml:space="preserve"><value>Üst klasör</value></data>
+  <data name="CreateFolder" xml:space="preserve"><value>Klasör Oluştur</value></data>
+  <data name="NoFoldersYet" xml:space="preserve"><value>Henüz klasör yok.</value></data>
+  <data name="Rename" xml:space="preserve"><value>Yeniden Adlandır</value></data>
+  <data name="BackupTitle" xml:space="preserve"><value>Yedekleme</value></data>
+  <data name="MasterPasswordLabel" xml:space="preserve"><value>Ana Parola</value></data>
+  <data name="BackupPasswordPlaceholder" xml:space="preserve"><value>Aşağıdaki her işlem için ana parolanızı girin</value></data>
+  <data name="CreateBackup" xml:space="preserve"><value>Yedek Oluştur (.vault)</value></data>
+  <data name="CreateBackupDesc" xml:space="preserve"><value>Tüm kasanızın şifreli, taşınabilir bir kopyasını oluşturur.</value></data>
+  <data name="RestoreBackup" xml:space="preserve"><value>Yedekten Geri Yükle</value></data>
+  <data name="RestoreBackupDesc" xml:space="preserve"><value>Bir .vault dosyası seçin -- mevcut kasanızın tüm içeriği, dosyadakiyle DEĞİŞTİRİLİR.</value></data>
+  <data name="ExportCsv" xml:space="preserve"><value>CSV Olarak Dışa Aktar</value></data>
+  <data name="ExportCsvDesc" xml:space="preserve"><value>Tüm parolalarınız dahil, ŞİFRESİZ düz metin olarak dışa aktarır. Yalnızca gerektiğinde kullanın.</value></data>
+  <data name="ExportCsvWarning" xml:space="preserve"><value>CSV Olarak Dışa Aktar (Uyarılı)</value></data>
+  <data name="VaultLocked" xml:space="preserve"><value>Kasa Kilitli</value></data>
+  <data name="MasterPasswordPlaceholder" xml:space="preserve"><value>Ana şifre</value></data>
+  <data name="RemainingTime" xml:space="preserve"><value>Kalan süre: {0}</value></data>
+  <data name="Unlock" xml:space="preserve"><value>Kilidi Aç</value></data>
+  <data name="UnlockBiometric" xml:space="preserve"><value>Biyometrik ile Aç</value></data>
+  <data name="LicenseTitle" xml:space="preserve"><value>Lisans</value></data>
+  <data name="SoftwareName" xml:space="preserve"><value>Yazılım/kurum adı</value></data>
+  <data name="LicenseKey" xml:space="preserve"><value>Lisans anahtarı</value></data>
+  <data name="HasExpiry" xml:space="preserve"><value>Son geçerlilik tarihi var</value></data>
+  <data name="NoteTitle" xml:space="preserve"><value>Güvenli Not</value></data>
+  <data name="NotePlaceholder" xml:space="preserve"><value>Not</value></data>
+  <data name="CardTitle" xml:space="preserve"><value>Kart</value></data>
+  <data name="CardholderName" xml:space="preserve"><value>Kart üzerindeki isim</value></data>
+  <data name="CardNumber" xml:space="preserve"><value>Kart numarası</value></data>
+  <data name="ExpiryMonth" xml:space="preserve"><value>Ay (AA)</value></data>
+  <data name="ExpiryYear" xml:space="preserve"><value>Yıl (YYYY)</value></data>
+  <data name="CardType" xml:space="preserve"><value>Kart türü</value></data>
+  <data name="CardTypeOther" xml:space="preserve"><value>Diğer</value></data>
+  <data name="LoginTitle" xml:space="preserve"><value>Giriş Bilgisi</value></data>
+  <data name="Username" xml:space="preserve"><value>Kullanıcı adı</value></data>
+  <data name="Password" xml:space="preserve"><value>Şifre</value></data>
+  <data name="TotpSecret" xml:space="preserve"><value>TOTP anahtarı (opsiyonel)</value></data>
+  <data name="SecondsShort" xml:space="preserve"><value>{0}sn</value></data>
+  <data name="GeneratorTitle" xml:space="preserve"><value>Şifre Üretici</value></data>
+  <data name="Length" xml:space="preserve"><value>Uzunluk</value></data>
+  <data name="Uppercase" xml:space="preserve"><value>Büyük harf (A-Z)</value></data>
+  <data name="Lowercase" xml:space="preserve"><value>Küçük harf (a-z)</value></data>
+  <data name="Digits" xml:space="preserve"><value>Rakam (0-9)</value></data>
+  <data name="Symbols" xml:space="preserve"><value>Özel karakter (!@#$...)</value></data>
+  <data name="ExcludeAmbiguous" xml:space="preserve"><value>Belirsiz karakterleri hariç tut (0/O, 1/l/I...)</value></data>
+  <data name="GeneratePassword" xml:space="preserve"><value>Şifre Üret</value></data>
+  <data name="SetupTitle" xml:space="preserve"><value>Kasa Kurulumu</value></data>
+  <data name="Welcome" xml:space="preserve"><value>KeyKeeper&apos;a Hoş Geldiniz</value></data>
+  <data name="SetupIntro" xml:space="preserve"><value>Kasanızı korumak için bir ana şifre belirleyin. Bu şifre hiçbir yerde saklanmaz — unutursanız kasadaki veriler kurtarılamaz.</value></data>
+  <data name="ConfirmMasterPassword" xml:space="preserve"><value>Ana şifre (tekrar)</value></data>
+  <data name="CreateVault" xml:space="preserve"><value>Kasayı Oluştur</value></data>
+  <data name="SecurityWarningTitle" xml:space="preserve"><value>Güvenlik Uyarısı</value></data>
+  <data name="Warning" xml:space="preserve"><value>Uyarı</value></data>
+  <data name="ContinueAnyway" xml:space="preserve"><value>Yine de Devam Et</value></data>
+  <data name="SettingsTitle" xml:space="preserve"><value>Ayarlar</value></data>
+  <data name="Autofill" xml:space="preserve"><value>Otomatik Doldurma</value></data>
+  <data name="AutofillDesc" xml:space="preserve"><value>Etkinleştirildiğinde, KeyKeeper diğer uygulamalarda ve tarayıcıda kayıtlı giriş bilgilerinizi doldurmayı önerir. Kasa kilitliyken önce KeyKeeper&apos;ın kendi kilit ekranı açılır.</value></data>
+  <data name="OpenAutofillSettings" xml:space="preserve"><value>Otomatik Doldurma Ayarlarını Aç</value></data>
+  <data name="WifiTitle" xml:space="preserve"><value>WiFi</value></data>
+  <data name="NetworkName" xml:space="preserve"><value>Ağ adı (SSID)</value></data>
+  <data name="SecurityProtocol" xml:space="preserve"><value>Güvenlik protokolü</value></data>
+  <data name="WifiOpen" xml:space="preserve"><value>Açık (şifresiz)</value></data>
+  <data name="HiddenNetwork" xml:space="preserve"><value>Gizli ağ</value></data>
+  <data name="VaultTitle" xml:space="preserve"><value>Kasa</value></data>
+  <data name="Lock" xml:space="preserve"><value>Kilitle</value></data>
+  <data name="SearchPlaceholder" xml:space="preserve"><value>Ara (isim, kullanıcı adı, URL...)</value></data>
+  <data name="FolderFilterDescription" xml:space="preserve"><value>Klasör filtresi: {0}</value></data>
+  <data name="TagFilterDescription" xml:space="preserve"><value>Etiket filtresi: {0}</value></data>
+  <data name="FavoritesOnly" xml:space="preserve"><value>Yalnızca favoriler</value></data>
+  <data name="EnableBiometric" xml:space="preserve"><value>Biyometrik Kilidi Etkinleştir</value></data>
+  <data name="AddFirstItem" xml:space="preserve"><value>İlk Öğeni Ekle</value></data>
+  <data name="OpenItemDescription" xml:space="preserve"><value>{0} öğesini aç</value></data>
+  <data name="BackupVerifyingAndEncrypting" xml:space="preserve"><value>Ana parola doğrulanıyor ve yedek şifreleniyor... (bu birkaç saniye sürebilir)</value></data>
+  <data name="SaveBackupTitle" xml:space="preserve"><value>KeyKeeper Yedeğini Kaydet</value></data>
+  <data name="BackupCreated" xml:space="preserve"><value>Yedek oluşturuldu.</value></data>
+  <data name="VaultLockedRetry" xml:space="preserve"><value>Kasa kilitlendi. Lütfen tekrar açıp deneyin.</value></data>
+  <data name="EnterMasterPassword" xml:space="preserve"><value>Lütfen ana parolanızı girin.</value></data>
+  <data name="PickBackupFileTitle" xml:space="preserve"><value>Yedek dosyasını seçin (.vault)</value></data>
+  <data name="FilePickFailed" xml:space="preserve"><value>Dosya seçilemedi.</value></data>
+  <data name="ReadingBackup" xml:space="preserve"><value>Yedek dosyası okunuyor ve doğrulanıyor...</value></data>
+  <data name="VaultWillBeReplacedTitle" xml:space="preserve"><value>Kasa Değiştirilecek</value></data>
+  <data name="ImportConfirmMessage" xml:space="preserve"><value>{0} öğe, {1} klasör, {2} etiket içe aktarılacak. Mevcut kasanızın TÜM içeriği silinecek ve bunların yerine geçecek. Bu işlem GERİ ALINAMAZ.</value></data>
+  <data name="Import" xml:space="preserve"><value>İçe Aktar</value></data>
+  <data name="ImportCancelled" xml:space="preserve"><value>İçe aktarma iptal edildi.</value></data>
+  <data name="Importing" xml:space="preserve"><value>İçe aktarılıyor...</value></data>
+  <data name="ImportSuccess" xml:space="preserve"><value>Yedek başarıyla içe aktarıldı.</value></data>
+  <data name="FileReadFailed" xml:space="preserve"><value>Dosya okunamadı.</value></data>
+  <data name="PlaintextExportTitle" xml:space="preserve"><value>Şifresiz Dışa Aktarım</value></data>
+  <data name="PlaintextExportMessage" xml:space="preserve"><value>Bu CSV dosyası tüm parolalarınızı ve diğer gizli bilgilerinizi ŞİFRESİZ, düz metin olarak içerecek. Dosya, kaydettiğiniz veya paylaştığınız her yerde güvensiz biçimde durabilir. Yine de devam etmek istiyor musunuz?</value></data>
+  <data name="Continue" xml:space="preserve"><value>Devam Et</value></data>
+  <data name="VerifyingMasterPassword" xml:space="preserve"><value>Ana parola doğrulanıyor...</value></data>
+  <data name="WrongMasterPassword" xml:space="preserve"><value>Ana parola yanlış.</value></data>
+  <data name="SaveCsvTitle" xml:space="preserve"><value>KeyKeeper CSV Dışa Aktarımını Kaydet</value></data>
+  <data name="CsvExported" xml:space="preserve"><value>CSV dışa aktarıldı.</value></data>
+  <data name="RootFolder" xml:space="preserve"><value>Kök klasör (üst klasör yok)</value></data>
+  <data name="EnterFolderName" xml:space="preserve"><value>Bir klasör adı girin.</value></data>
+  <data name="RenameFolderTitle" xml:space="preserve"><value>Klasörü Yeniden Adlandır</value></data>
+  <data name="NewNamePrompt" xml:space="preserve"><value>Yeni ad:</value></data>
+  <data name="DeleteFolderTitle" xml:space="preserve"><value>Klasör silinsin mi?</value></data>
+  <data name="DeleteFolderMessage" xml:space="preserve"><value>&quot;{0}&quot; klasörü (ve varsa alt klasörleri) silinecek. İçindeki öğeler silinmez, klasörsüz duruma geçer.</value></data>
+  <data name="VaultOpenFailed" xml:space="preserve"><value>Kasa açılamadı. Veri bozulmuş olabilir.</value></data>
+  <data name="WrongPasswordAttempt" xml:space="preserve"><value>Yanlış şifre ({0}. yanlış deneme).</value></data>
+  <data name="TooManyAttempts" xml:space="preserve"><value>Çok fazla yanlış deneme yapıldı.</value></data>
+  <data name="BiometricUnavailable" xml:space="preserve"><value>Biyometrik kimlik doğrulama şu anda kullanılamıyor.</value></data>
+  <data name="BiometricFailed" xml:space="preserve"><value>Biyometrik doğrulama başarısız oldu veya iptal edildi.</value></data>
+  <data name="TotpInvalid" xml:space="preserve"><value>TOTP anahtarı geçerli bir Base32 değeri değil.</value></data>
+  <data name="ClipboardCopied" xml:space="preserve"><value>Panoya kopyalandı, {0} saniye sonra temizlenecek.</value></data>
+  <data name="StrengthWeak" xml:space="preserve"><value>Zayıf</value></data>
+  <data name="StrengthMedium" xml:space="preserve"><value>Orta</value></data>
+  <data name="StrengthStrong" xml:space="preserve"><value>Güçlü</value></data>
+  <data name="StrengthVeryStrong" xml:space="preserve"><value>Çok Güçlü</value></data>
+  <data name="ReasonRoot" xml:space="preserve"><value>cihazınızın root/jailbreak yapılmış olabileceğine dair belirtiler</value></data>
+  <data name="ReasonDebugger" xml:space="preserve"><value>uygulamaya bağlı bir hata ayıklayıcı (debugger)</value></data>
+  <data name="ReasonJoiner" xml:space="preserve"><value> ve </value></data>
+  <data name="SecurityWarningMessage" xml:space="preserve"><value>Bu cihazda {0} tespit edildi. Bu durum, kasanızın dayandığı işletim sistemi güvenlik korumalarını (ör. donanım destekli anahtar depolama) zayıflatmış olabilir. Devam etmek size kalmıştır.</value></data>
+  <data name="AutofillActive" xml:space="preserve"><value>KeyKeeper şu anda sistemin otomatik doldurma servisi olarak seçili.</value></data>
+  <data name="AutofillInactive" xml:space="preserve"><value>KeyKeeper şu anda otomatik doldurma servisi olarak seçili değil.</value></data>
+  <data name="PasswordTooShort" xml:space="preserve"><value>Ana şifre en az {0} karakter olmalı.</value></data>
+  <data name="PasswordsMismatch" xml:space="preserve"><value>Şifreler eşleşmiyor.</value></data>
+  <data name="VaultCreateFailed" xml:space="preserve"><value>Kasa oluşturulamadı. Lütfen tekrar deneyin.</value></data>
+  <data name="VaultAlreadySetup" xml:space="preserve"><value>Kasa zaten kuruldu.</value></data>
+  <data name="ItemNotFound" xml:space="preserve"><value>Öğe bulunamadı.</value></data>
+  <data name="Unfiled" xml:space="preserve"><value>Klasörsüz</value></data>
+  <data name="EnterTitle" xml:space="preserve"><value>Bir başlık girin.</value></data>
+  <data name="SaveFailed" xml:space="preserve"><value>Kaydedilemedi. Lütfen tekrar deneyin.</value></data>
+  <data name="SecureNoteType" xml:space="preserve"><value>Güvenli not</value></data>
+  <data name="EmptyNoItems" xml:space="preserve"><value>Henüz öğe yok. Başlamak için ilk öğeni ekle.</value></data>
+  <data name="NoResultsFor" xml:space="preserve"><value>&quot;{0}&quot; için sonuç bulunamadı.</value></data>
+  <data name="EmptyFolder" xml:space="preserve"><value>Bu klasörde henüz öğe yok.</value></data>
+  <data name="EmptyUnfiled" xml:space="preserve"><value>Klasörsüz öğe yok.</value></data>
+  <data name="EmptyFilters" xml:space="preserve"><value>Bu filtrelerle eşleşen öğe yok.</value></data>
+  <data name="FilterAll" xml:space="preserve"><value>Tümü</value></data>
+  <data name="BiometricEnabled" xml:space="preserve"><value>Biyometrik kilit açma etkinleştirildi.</value></data>
+  <data name="NewItem" xml:space="preserve"><value>Yeni öğe</value></data>
+  <data name="DeleteItemTitle" xml:space="preserve"><value>Silinsin mi?</value></data>
+  <data name="DeleteItemMessage" xml:space="preserve"><value>Bu öğe kalıcı olarak silinecek.</value></data>
+  <data name="BiometricPromptTitle" xml:space="preserve"><value>Kimlik Doğrulama</value></data>
+  <data name="AutofillUnlockLabel" xml:space="preserve"><value>KeyKeeper ile aç 🔒</value></data>
+  <data name="RemoveFromFavorites" xml:space="preserve"><value>Favorilerden çıkar</value></data>
+  <data name="AddToFavorites" xml:space="preserve"><value>Favorilere ekle</value></data>
+</root>

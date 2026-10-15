@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:KeyKeeper.Localization"
              xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
              x:Class="KeyKeeper.Views.SettingsPage"
              x:DataType="viewmodels:SettingsViewModel"
-             Title="Ayarlar">
+             Title="{x:Static loc:S.SettingsTitle}">
 
     <VerticalStackLayout Padding="20" Spacing="16">
 
-        <Label Text="Otomatik Doldurma" Style="{StaticResource SubHeadline}" />
-        <Label Text="Etkinleştirildiğinde, KeyKeeper diğer uygulamalarda ve tarayıcıda kayıtlı giriş bilgilerinizi doldurmayı önerir. Kasa kilitliyken önce KeyKeeper'ın kendi kilit ekranı açılır." />
+        <Label Text="{x:Static loc:S.Autofill}" Style="{StaticResource SubHeadline}" />
+        <Label Text="{x:Static loc:S.AutofillDesc}" />
 
         <Label Text="{Binding AutofillStatusMessage}" Style="{StaticResource StatusCaption}" />
 
         <Button
-            Text="Otomatik Doldurma Ayarlarını Aç"
+            Text="{x:Static loc:S.OpenAutofillSettings}"
             Command="{Binding OpenAutofillSettingsCommand}"
             HorizontalOptions="Fill" />
 

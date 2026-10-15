@@ -5,6 +5,7 @@ using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
 using Microsoft.Maui.ApplicationModel.DataTransfer;
 using Microsoft.Maui.Storage;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -72,7 +73,7 @@ public sealed partial class BackupViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Ana parola doğrulanıyor ve yedek şifreleniyor... (bu birkaç saniye sürebilir)";
+        StatusMessage = S.BackupVerifyingAndEncrypting;
         try
         {
             BackupExportResult result = await _backup.ExportAsync(passwordChars);
@@ -88,16 +89,16 @@ public sealed partial class BackupViewModel : ObservableObject
 
             await Share.Default.RequestAsync(new ShareFileRequest
             {
-                Title = "KeyKeeper Yedeğini Kaydet",
+                Title = S.SaveBackupTitle,
                 File = new ShareFile(path),
             });
 
-            StatusMessage = "Yedek oluşturuldu.";
+            StatusMessage = S.BackupCreated;
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
         {
             StatusMessage = null;
-            ErrorMessage = "Kasa kilitlendi. Lütfen tekrar açıp deneyin.";
+            ErrorMessage = S.VaultLockedRetry;
         }
         finally
         {
@@ -111,18 +112,18 @@ public sealed partial class BackupViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(MasterPassword))
         {
-            ErrorMessage = "Lütfen ana parolanızı girin.";
+            ErrorMessage = S.EnterMasterPassword;
             return;
         }
 
         FileResult? picked;
         try
         {
-            picked = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "Yedek dosyasını seçin (.vault)" });
+            picked = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = S.PickBackupFileTitle });
         }
         catch (Exception)
         {
-            ErrorMessage = "Dosya seçilemedi.";
+            ErrorMessage = S.FilePickFailed;
             return;
         }
 
@@ -137,7 +138,7 @@ public sealed partial class BackupViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Yedek dosyası okunuyor ve doğrulanıyor...";
+        StatusMessage = S.ReadingBackup;
         try
         {
             BackupImportResult result = await _backup.PrepareImportAsync(picked.FullPath, passwordChars);
@@ -150,29 +151,28 @@ public sealed partial class BackupViewModel : ObservableObject
 
             BackupImportPreview preview = result.Preview!;
             bool confirmed = await Shell.Current.DisplayAlertAsync(
-                "Kasa Değiştirilecek",
-                $"{preview.ItemCount} öğe, {preview.FolderCount} klasör, {preview.TagCount} etiket içe aktarılacak. " +
-                "Mevcut kasanızın TÜM içeriği silinecek ve bunların yerine geçecek. Bu işlem GERİ ALINAMAZ.",
-                "İçe Aktar", "Vazgeç");
+                S.VaultWillBeReplacedTitle,
+                S.F(S.ImportConfirmMessage, preview.ItemCount, preview.FolderCount, preview.TagCount),
+                S.Import, S.CancelAction);
             if (!confirmed)
             {
-                StatusMessage = "İçe aktarma iptal edildi.";
+                StatusMessage = S.ImportCancelled;
                 return;
             }
 
-            StatusMessage = "İçe aktarılıyor...";
+            StatusMessage = S.Importing;
             await _backup.CommitImportAsync(preview);
-            StatusMessage = "Yedek başarıyla içe aktarıldı.";
+            StatusMessage = S.ImportSuccess;
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
         {
             StatusMessage = null;
-            ErrorMessage = "Kasa kilitlendi. Lütfen tekrar açıp deneyin.";
+            ErrorMessage = S.VaultLockedRetry;
         }
         catch (IOException)
         {
             StatusMessage = null;
-            ErrorMessage = "Dosya okunamadı.";
+            ErrorMessage = S.FileReadFailed;
         }
         finally
         {
@@ -188,11 +188,9 @@ public sealed partial class BackupViewModel : ObservableObject
         StatusMessage = null;
 
         bool acknowledged = await Shell.Current.DisplayAlertAsync(
-            "Şifresiz Dışa Aktarım",
-            "Bu CSV dosyası tüm parolalarınızı ve diğer gizli bilgilerinizi ŞİFRESİZ, düz metin " +
-            "olarak içerecek. Dosya, kaydettiğiniz veya paylaştığınız her yerde güvensiz biçimde " +
-            "durabilir. Yine de devam etmek istiyor musunuz?",
-            "Devam Et", "Vazgeç");
+            S.PlaintextExportTitle,
+            S.PlaintextExportMessage,
+            S.Continue, S.CancelAction);
         if (!acknowledged)
         {
             return;
@@ -204,14 +202,14 @@ public sealed partial class BackupViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Ana parola doğrulanıyor...";
+        StatusMessage = S.VerifyingMasterPassword;
         try
         {
             bool verified = await _backup.VerifyMasterPasswordAsync(passwordChars);
             if (!verified)
             {
                 StatusMessage = null;
-                ErrorMessage = "Ana parola yanlış.";
+                ErrorMessage = S.WrongMasterPassword;
                 return;
             }
 
@@ -223,16 +221,16 @@ public sealed partial class BackupViewModel : ObservableObject
 
             await Share.Default.RequestAsync(new ShareFileRequest
             {
-                Title = "KeyKeeper CSV Dışa Aktarımını Kaydet",
+                Title = S.SaveCsvTitle,
                 File = new ShareFile(path),
             });
 
-            StatusMessage = "CSV dışa aktarıldı.";
+            StatusMessage = S.CsvExported;
         }
         catch (Exception ex) when (ex is InvalidOperationException or VaultDatabaseException)
         {
             StatusMessage = null;
-            ErrorMessage = "Kasa kilitlendi. Lütfen tekrar açıp deneyin.";
+            ErrorMessage = S.VaultLockedRetry;
         }
         finally
         {
@@ -252,7 +250,7 @@ public sealed partial class BackupViewModel : ObservableObject
 
         if (string.IsNullOrEmpty(MasterPassword))
         {
-            ErrorMessage = "Lütfen ana parolanızı girin.";
+            ErrorMessage = S.EnterMasterPassword;
             passwordChars = [];
             return false;
         }

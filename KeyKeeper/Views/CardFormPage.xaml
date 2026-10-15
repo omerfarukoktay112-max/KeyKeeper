@@ -1,51 +1,52 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:KeyKeeper.Localization"
              xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
              x:Class="KeyKeeper.Views.CardFormPage"
              x:DataType="viewmodels:CardFormViewModel"
-             Title="Kart">
+             Title="{x:Static loc:S.CardTitle}">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
 
-            <Entry Placeholder="Başlık" Text="{Binding Title}" />
-            <Entry Placeholder="Kart üzerindeki isim" Text="{Binding CardholderName}" />
+            <Entry Placeholder="{x:Static loc:S.FieldTitle}" Text="{Binding Title}" />
+            <Entry Placeholder="{x:Static loc:S.CardholderName}" Text="{Binding CardholderName}" />
 
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <Entry Grid.Column="0" Placeholder="Kart numarası" Text="{Binding CardNumber}" IsPassword="{Binding IsCardNumberMasked}" Keyboard="Numeric" />
-                <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleCardNumberVisibilityCommand}" />
-                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding CardNumber}" />
+                <Entry Grid.Column="0" Placeholder="{x:Static loc:S.CardNumber}" Text="{Binding CardNumber}" IsPassword="{Binding IsCardNumberMasked}" Keyboard="Numeric" />
+                <Button Grid.Column="1" Text="{x:Static loc:S.Show}" Command="{Binding ToggleCardNumberVisibilityCommand}" />
+                <Button Grid.Column="2" Text="{x:Static loc:S.Copy}" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding CardNumber}" />
             </Grid>
 
             <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <Entry Grid.Column="0" Placeholder="Ay (AA)" Text="{Binding ExpiryMonthText}" Keyboard="Numeric" MaxLength="2" />
-                <Entry Grid.Column="1" Placeholder="Yıl (YYYY)" Text="{Binding ExpiryYearText}" Keyboard="Numeric" MaxLength="4" />
+                <Entry Grid.Column="0" Placeholder="{x:Static loc:S.ExpiryMonth}" Text="{Binding ExpiryMonthText}" Keyboard="Numeric" MaxLength="2" />
+                <Entry Grid.Column="1" Placeholder="{x:Static loc:S.ExpiryYear}" Text="{Binding ExpiryYearText}" Keyboard="Numeric" MaxLength="4" />
             </Grid>
 
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <Entry Grid.Column="0" Placeholder="CVV" Text="{Binding Cvv}" IsPassword="{Binding IsCvvMasked}" Keyboard="Numeric" MaxLength="4" />
-                <Button Grid.Column="1" Text="Göster" Command="{Binding ToggleCvvVisibilityCommand}" />
-                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Cvv}" />
+                <Button Grid.Column="1" Text="{x:Static loc:S.Show}" Command="{Binding ToggleCvvVisibilityCommand}" />
+                <Button Grid.Column="2" Text="{x:Static loc:S.Copy}" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Cvv}" />
             </Grid>
 
             <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource StatusCaption}" />
 
             <Picker
-                Title="Kart türü"
+                Title="{x:Static loc:S.CardType}"
                 ItemsSource="{x:Static viewmodels:CardFormViewModel.CardTypeOptions}"
                 SelectedIndex="{Binding CardTypeIndex}" />
 
-            <Picker Title="Klasör" ItemsSource="{Binding FolderOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedFolderOption}" />
+            <Picker Title="{x:Static loc:S.Folder}" ItemsSource="{Binding FolderOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedFolderOption}" />
 
-            <Label Text="Etiketler" FontAttributes="Bold" />
+            <Label Text="{x:Static loc:S.Tags}" FontAttributes="Bold" />
             <FlexLayout BindableLayout.ItemsSource="{Binding Tags}" Wrap="Wrap" Direction="Row" JustifyContent="Start">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
                         <Border Style="{StaticResource TagChipBorder}">
                             <HorizontalStackLayout Spacing="6">
-                                <Label Text="{Binding .}" VerticalOptions="Center" SemanticProperties.Description="{Binding ., StringFormat='Etiket: {0}'}" />
-                                <Label Text="✕" VerticalOptions="Center" Style="{StaticResource TagRemoveLabel}" SemanticProperties.Description="{Binding ., StringFormat='Etiketi kaldır: {0}'}">
+                                <Label Text="{Binding .}" VerticalOptions="Center" SemanticProperties.Description="{Binding ., StringFormat={x:Static loc:S.TagDescription}}" />
+                                <Label Text="✕" VerticalOptions="Center" Style="{StaticResource TagRemoveLabel}" SemanticProperties.Description="{Binding ., StringFormat={x:Static loc:S.RemoveTagDescription}}">
                                     <Label.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding BindingContext.RemoveTagCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" />
                                     </Label.GestureRecognizers>
@@ -56,16 +57,16 @@
                 </BindableLayout.ItemTemplate>
             </FlexLayout>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Entry Grid.Column="0" Placeholder="Yeni etiket" Text="{Binding NewTagText}" />
-                <Button Grid.Column="1" Text="Ekle" Command="{Binding AddTagCommand}" />
+                <Entry Grid.Column="0" Placeholder="{x:Static loc:S.NewTag}" Text="{Binding NewTagText}" />
+                <Button Grid.Column="1" Text="{x:Static loc:S.Add}" Command="{Binding AddTagCommand}" />
             </Grid>
 
             <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
 
-            <Button Text="Kaydet" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
-            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
+            <Button Text="{x:Static loc:S.Save}" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
+            <Button Text="{x:Static loc:S.Delete}" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
 
         </VerticalStackLayout>
     </ScrollView>

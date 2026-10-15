@@ -61,12 +61,12 @@ public static class VaultBackupFile
         int prefixEnd = Magic.Length + sizeof(int);
         if (fileBytes.Length < prefixEnd)
         {
-            throw new VaultBackupFormatException("Dosya çok kısa; geçerli bir KeyKeeper yedek dosyası değil.");
+            throw new VaultBackupFormatException(CoreStrings.FileTooShort);
         }
 
         if (!fileBytes.AsSpan(0, Magic.Length).SequenceEqual(Magic))
         {
-            throw new VaultBackupFormatException("Dosya imzası tanınmadı; geçerli bir KeyKeeper yedek dosyası değil.");
+            throw new VaultBackupFormatException(CoreStrings.FileSignatureUnknown);
         }
 
         byte[] lengthPrefix = fileBytes[Magic.Length..prefixEnd];
@@ -78,7 +78,7 @@ public static class VaultBackupFile
         int headerLength = BitConverter.ToInt32(lengthPrefix, 0);
         if (headerLength < 0 || prefixEnd + headerLength > fileBytes.Length)
         {
-            throw new VaultBackupFormatException("Dosya kısaltılmış veya bozulmuş görünüyor.");
+            throw new VaultBackupFormatException(CoreStrings.FileTruncated);
         }
 
         byte[] headerJson = fileBytes[prefixEnd..(prefixEnd + headerLength)];
@@ -89,18 +89,18 @@ public static class VaultBackupFile
         }
         catch (JsonException ex)
         {
-            throw new VaultBackupFormatException("Yedek başlığı okunamadı; dosya bozulmuş olabilir.", ex);
+            throw new VaultBackupFormatException(CoreStrings.HeaderUnreadable, ex);
         }
 
         if (header is null)
         {
-            throw new VaultBackupFormatException("Yedek başlığı boş; dosya bozulmuş olabilir.");
+            throw new VaultBackupFormatException(CoreStrings.HeaderEmpty);
         }
 
         byte[] encryptedPayload = fileBytes[(prefixEnd + headerLength)..];
         if (encryptedPayload.Length == 0)
         {
-            throw new VaultBackupFormatException("Yedek dosyasında şifreli veri bulunamadı.");
+            throw new VaultBackupFormatException(CoreStrings.NoEncryptedData);
         }
 
         return (header, encryptedPayload);

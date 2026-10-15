@@ -16,5 +16,5 @@ public enum BackupExportResultKind
 public sealed record BackupExportResult(BackupExportResultKind Kind, byte[]? FileBytes, string? ErrorMessage = null)
 {
     public static BackupExportResult WrongPassword { get; } =
-        new(BackupExportResultKind.WrongPassword, null, "Ana parola yanlış.");
+        new(BackupExportResultKind.WrongPassword, null, CoreStrings.ExportWrongPassword);
 }

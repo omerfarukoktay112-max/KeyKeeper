@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Auth;
 using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
+using KeyKeeper.Localization;
 using KeyKeeper.Services;
 
 namespace KeyKeeper.ViewModels;
@@ -100,20 +101,20 @@ public sealed partial class VaultListViewModel : ObservableObject
         {
             if (_allItems.Count == 0)
             {
-                return "Henüz öğe yok. Başlamak için ilk öğeni ekle.";
+                return S.EmptyNoItems;
             }
 
             string query = SearchText?.Trim() ?? string.Empty;
             if (query.Length > 0)
             {
-                return $"\"{query}\" için sonuç bulunamadı.";
+                return S.F(S.NoResultsFor, query);
             }
 
             return _selectedFolderFilter?.Kind switch
             {
-                FolderFilterKind.Specific => "Bu klasörde henüz öğe yok.",
-                FolderFilterKind.Unfiled => "Klasörsüz öğe yok.",
-                _ => "Bu filtrelerle eşleşen öğe yok.",
+                FolderFilterKind.Specific => S.EmptyFolder,
+                FolderFilterKind.Unfiled => S.EmptyUnfiled,
+                _ => S.EmptyFilters,
             };
         }
     }
@@ -184,8 +185,8 @@ public sealed partial class VaultListViewModel : ObservableObject
         FolderFilterKind previouslySelectedKind = _selectedFolderFilter?.Kind ?? FolderFilterKind.All;
 
         FolderFilterOptions.Clear();
-        FolderFilterOptions.Add(new FolderFilterOptionViewModel(FolderFilterKind.All, null, "Tümü"));
-        FolderFilterOptions.Add(new FolderFilterOptionViewModel(FolderFilterKind.Unfiled, null, "Klasörsüz"));
+        FolderFilterOptions.Add(new FolderFilterOptionViewModel(FolderFilterKind.All, null, S.FilterAll));
+        FolderFilterOptions.Add(new FolderFilterOptionViewModel(FolderFilterKind.Unfiled, null, S.Unfiled));
         foreach (IndentedFolder folder in FolderTreeFlattener.Flatten(_folders.ListAll()))
         {
             FolderFilterOptions.Add(new FolderFilterOptionViewModel(FolderFilterKind.Specific, folder.Id, folder.DisplayName));
@@ -300,7 +301,7 @@ public sealed partial class VaultListViewModel : ObservableObject
     private async Task EnableBiometricUnlockAsync()
     {
         await _auth.EnableBiometricUnlockAsync();
-        BiometricStatusMessage = "Biyometrik kilit açma etkinleştirildi.";
+        BiometricStatusMessage = S.BiometricEnabled;
     }
 
     [RelayCommand]
@@ -319,7 +320,7 @@ public sealed partial class VaultListViewModel : ObservableObject
     private async Task AddAsync()
     {
         string choice = await Shell.Current.DisplayActionSheetAsync(
-            "Yeni öğe", "İptal", null, "Giriş Bilgisi", "Kart", "WiFi", "Güvenli Not", "Lisans");
+            S.NewItem, S.Cancel, null, S.LoginTitle, S.CardTitle, S.WifiTitle, S.NoteTitle, S.LicenseTitle);
 
         string? route = RouteFor(choice);
         if (route is not null)
@@ -335,15 +336,15 @@ public sealed partial class VaultListViewModel : ObservableObject
         await Shell.Current.GoToAsync($"{route}?id={entry.Id}");
     }
 
-    private static string? RouteFor(string addMenuChoice) => addMenuChoice switch
+    private static string? RouteFor(string addMenuChoice)
     {
-        "Giriş Bilgisi" => "login-form",
-        "Kart" => "card-form",
-        "WiFi" => "wifi-form",
-        "Güvenli Not" => "note-form",
-        "Lisans" => "license-form",
-        _ => null,
-    };
+        if (addMenuChoice == S.LoginTitle) return "login-form";
+        if (addMenuChoice == S.CardTitle) return "card-form";
+        if (addMenuChoice == S.WifiTitle) return "wifi-form";
+        if (addMenuChoice == S.NoteTitle) return "note-form";
+        if (addMenuChoice == S.LicenseTitle) return "license-form";
+        return null;
+    }
 
     private static string RouteForType(VaultItemType type) => type switch
     {

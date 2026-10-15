@@ -159,7 +159,7 @@ public sealed class AuthenticationService : IAuthenticationService, IDisposable
         }
 
         BiometricAuthOutcome outcome = await _biometricAuth
-            .AuthenticateAsync("Kasayı açmak için kimliğinizi doğrulayın")
+            .AuthenticateAsync(CoreStrings.BiometricReason)
             .ConfigureAwait(false);
 
         if (outcome != BiometricAuthOutcome.Success)

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using KeyKeeper.Core.Auth;
 using KeyKeeper.Core.Crypto;
 using KeyKeeper.Core.Data;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -62,13 +63,13 @@ public sealed partial class SetupViewModel : ObservableObject
 
         if (Password.Length < MinimumPasswordLength)
         {
-            ErrorMessage = $"Ana şifre en az {MinimumPasswordLength} karakter olmalı.";
+            ErrorMessage = S.F(S.PasswordTooShort, MinimumPasswordLength);
             return;
         }
 
         if (Password != ConfirmPassword)
         {
-            ErrorMessage = "Şifreler eşleşmiyor.";
+            ErrorMessage = S.PasswordsMismatch;
             return;
         }
 
@@ -81,13 +82,13 @@ public sealed partial class SetupViewModel : ObservableObject
         }
         catch (VaultDatabaseException)
         {
-            ErrorMessage = "Kasa oluşturulamadı. Lütfen tekrar deneyin.";
+            ErrorMessage = S.VaultCreateFailed;
         }
         catch (InvalidOperationException)
         {
             // The vault was already initialized (e.g. a second concurrent tap) -- surface it
             // rather than letting the page pretend setup didn't happen.
-            ErrorMessage = "Kasa zaten kuruldu.";
+            ErrorMessage = S.VaultAlreadySetup;
         }
         finally
         {

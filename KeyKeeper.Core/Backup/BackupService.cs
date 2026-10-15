@@ -169,7 +169,7 @@ public sealed class BackupService : IBackupService
                 // only reachable with a payload shorter than 28 bytes, which no genuine .vault
                 // file (however wrong the password) ever produces, so this is a corruption
                 // signal, not a password one.
-                return BackupImportResult.CorruptFile("Şifreli veri bloğu bozulmuş veya eksik.");
+                return BackupImportResult.CorruptFile(CoreStrings.CorruptEncryptedBlock);
             }
             finally
             {
@@ -181,7 +181,7 @@ public sealed class BackupService : IBackupService
                 VaultBackupPayload? payload = JsonSerializer.Deserialize<VaultBackupPayload>(json);
                 if (payload is null)
                 {
-                    return BackupImportResult.CorruptFile("Yedek içeriği boş; dosya bozulmuş olabilir.");
+                    return BackupImportResult.CorruptFile(CoreStrings.EmptyBackupContent);
                 }
 
                 return BackupImportResult.Success(
@@ -189,7 +189,7 @@ public sealed class BackupService : IBackupService
             }
             catch (JsonException ex)
             {
-                return BackupImportResult.CorruptFile($"Yedek içeriği okunamadı: {ex.Message}");
+                return BackupImportResult.CorruptFile(CoreStrings.BackupUnreadable(ex.Message));
             }
             finally
             {

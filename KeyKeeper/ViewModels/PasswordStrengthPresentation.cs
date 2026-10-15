@@ -1,5 +1,6 @@
 using KeyKeeper.Core.Tools;
 using Microsoft.Maui.Graphics;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -11,10 +12,10 @@ public static class PasswordStrengthPresentation
 {
     public static string Label(PasswordStrengthLevel level) => level switch
     {
-        PasswordStrengthLevel.Weak => "Zayıf",
-        PasswordStrengthLevel.Medium => "Orta",
-        PasswordStrengthLevel.Strong => "Güçlü",
-        PasswordStrengthLevel.VeryStrong => "Çok Güçlü",
+        PasswordStrengthLevel.Weak => S.StrengthWeak,
+        PasswordStrengthLevel.Medium => S.StrengthMedium,
+        PasswordStrengthLevel.Strong => S.StrengthStrong,
+        PasswordStrengthLevel.VeryStrong => S.StrengthVeryStrong,
         _ => string.Empty,
     };
 

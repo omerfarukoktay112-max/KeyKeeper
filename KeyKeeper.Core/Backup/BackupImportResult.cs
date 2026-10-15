@@ -32,7 +32,7 @@ public sealed record BackupImportResult(BackupImportResultKind Kind, BackupImpor
         new(BackupImportResultKind.Success, preview, null);
 
     public static BackupImportResult WrongPassword() =>
-        new(BackupImportResultKind.WrongPassword, null, "Ana parola yanlış ya da dosya bozulmuş.");
+        new(BackupImportResultKind.WrongPassword, null, CoreStrings.ImportWrongPassword);
 
     public static BackupImportResult CorruptFile(string message) =>
         new(BackupImportResultKind.CorruptFile, null, message);

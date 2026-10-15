@@ -4,6 +4,7 @@ using KeyKeeper.Core.Data;
 using KeyKeeper.Core.Models;
 using KeyKeeper.Core.Tools;
 using Microsoft.Maui.Graphics;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.ViewModels;
 
@@ -12,7 +13,7 @@ public sealed partial class WifiFormViewModel : VaultItemFormViewModelBase<WifiI
     /// <summary>Display order for the <c>SecurityProtocol</c> <c>Picker</c> in
     /// <c>WifiFormPage.xaml</c> — index N here must stay <see cref="WifiSecurityProtocol"/>'s
     /// underlying value N, since <see cref="SecurityProtocolIndex"/> casts directly between them.</summary>
-    public static readonly string[] SecurityProtocolOptions = ["Açık (şifresiz)", "WEP", "WPA2", "WPA3"];
+    public static readonly string[] SecurityProtocolOptions = [S.WifiOpen, "WEP", "WPA2", "WPA3"];
 
     private readonly IPasswordStrengthAnalyzer _strengthAnalyzer;
 

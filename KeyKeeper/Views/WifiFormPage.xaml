@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:loc="clr-namespace:KeyKeeper.Localization"
              xmlns:viewmodels="clr-namespace:KeyKeeper.ViewModels"
              x:Class="KeyKeeper.Views.WifiFormPage"
              x:DataType="viewmodels:WifiFormViewModel"
-             Title="WiFi">
+             Title="{x:Static loc:S.WifiTitle}">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
 
-            <Entry Placeholder="Başlık" Text="{Binding Title}" />
-            <Entry Placeholder="Ağ adı (SSID)" Text="{Binding Ssid}" />
+            <Entry Placeholder="{x:Static loc:S.FieldTitle}" Text="{Binding Title}" />
+            <Entry Placeholder="{x:Static loc:S.NetworkName}" Text="{Binding Ssid}" />
 
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <Entry Grid.Column="0" Placeholder="Şifre" Text="{Binding Password}" IsPassword="{Binding IsPasswordMasked}" />
-                <Button Grid.Column="1" Text="Göster" Command="{Binding TogglePasswordVisibilityCommand}" />
-                <Button Grid.Column="2" Text="Kopyala" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Password}" />
+                <Entry Grid.Column="0" Placeholder="{x:Static loc:S.Password}" Text="{Binding Password}" IsPassword="{Binding IsPasswordMasked}" />
+                <Button Grid.Column="1" Text="{x:Static loc:S.Show}" Command="{Binding TogglePasswordVisibilityCommand}" />
+                <Button Grid.Column="2" Text="{x:Static loc:S.Copy}" Command="{Binding CopyToClipboardCommand}" CommandParameter="{Binding Password}" />
             </Grid>
 
             <ProgressBar Progress="{Binding PasswordStrengthFraction}" ProgressColor="{Binding PasswordStrengthColor}" IsVisible="{Binding HasPasswordStrength}" />
@@ -23,25 +24,25 @@
             <Label Text="{Binding ClipboardStatus}" IsVisible="{Binding HasClipboardStatus}" Style="{StaticResource StatusCaption}" />
 
             <Picker
-                Title="Güvenlik protokolü"
+                Title="{x:Static loc:S.SecurityProtocol}"
                 ItemsSource="{x:Static viewmodels:WifiFormViewModel.SecurityProtocolOptions}"
                 SelectedIndex="{Binding SecurityProtocolIndex}" />
 
             <HorizontalStackLayout Spacing="10">
                 <Switch IsToggled="{Binding IsHidden}" />
-                <Label Text="Gizli ağ" VerticalOptions="Center" />
+                <Label Text="{x:Static loc:S.HiddenNetwork}" VerticalOptions="Center" />
             </HorizontalStackLayout>
 
-            <Picker Title="Klasör" ItemsSource="{Binding FolderOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedFolderOption}" />
+            <Picker Title="{x:Static loc:S.Folder}" ItemsSource="{Binding FolderOptions}" ItemDisplayBinding="{Binding DisplayName}" SelectedItem="{Binding SelectedFolderOption}" />
 
-            <Label Text="Etiketler" FontAttributes="Bold" />
+            <Label Text="{x:Static loc:S.Tags}" FontAttributes="Bold" />
             <FlexLayout BindableLayout.ItemsSource="{Binding Tags}" Wrap="Wrap" Direction="Row" JustifyContent="Start">
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="x:String">
                         <Border Style="{StaticResource TagChipBorder}">
                             <HorizontalStackLayout Spacing="6">
-                                <Label Text="{Binding .}" VerticalOptions="Center" SemanticProperties.Description="{Binding ., StringFormat='Etiket: {0}'}" />
-                                <Label Text="✕" VerticalOptions="Center" Style="{StaticResource TagRemoveLabel}" SemanticProperties.Description="{Binding ., StringFormat='Etiketi kaldır: {0}'}">
+                                <Label Text="{Binding .}" VerticalOptions="Center" SemanticProperties.Description="{Binding ., StringFormat={x:Static loc:S.TagDescription}}" />
+                                <Label Text="✕" VerticalOptions="Center" Style="{StaticResource TagRemoveLabel}" SemanticProperties.Description="{Binding ., StringFormat={x:Static loc:S.RemoveTagDescription}}">
                                     <Label.GestureRecognizers>
                                         <TapGestureRecognizer Command="{Binding BindingContext.RemoveTagCommand, Source={RelativeSource AncestorType={x:Type ContentPage}}}" CommandParameter="{Binding .}" />
                                     </Label.GestureRecognizers>
@@ -52,16 +53,16 @@
                 </BindableLayout.ItemTemplate>
             </FlexLayout>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Entry Grid.Column="0" Placeholder="Yeni etiket" Text="{Binding NewTagText}" />
-                <Button Grid.Column="1" Text="Ekle" Command="{Binding AddTagCommand}" />
+                <Entry Grid.Column="0" Placeholder="{x:Static loc:S.NewTag}" Text="{Binding NewTagText}" />
+                <Button Grid.Column="1" Text="{x:Static loc:S.Add}" Command="{Binding AddTagCommand}" />
             </Grid>
 
             <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorLabel}" IsVisible="{Binding HasError}" />
 
             <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
 
-            <Button Text="Kaydet" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
-            <Button Text="Sil" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
+            <Button Text="{x:Static loc:S.Save}" Command="{Binding SaveCommand}" HorizontalOptions="Fill" />
+            <Button Text="{x:Static loc:S.Delete}" Clicked="OnDeleteClicked" IsVisible="{Binding IsEditMode}" Style="{StaticResource DangerButton}" HorizontalOptions="Fill" />
 
         </VerticalStackLayout>
     </ScrollView>

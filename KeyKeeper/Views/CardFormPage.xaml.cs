@@ -1,4 +1,5 @@
 using KeyKeeper.ViewModels;
+using KeyKeeper.Localization;
 
 namespace KeyKeeper.Views;
 
@@ -37,7 +38,7 @@ public partial class CardFormPage : ContentPage, IQueryAttributable
 
     private async void OnDeleteClicked(object? sender, EventArgs e)
     {
-        bool confirmed = await this.DisplayAlertAsync("Silinsin mi?", "Bu öğe kalıcı olarak silinecek.", "Sil", "Vazgeç");
+        bool confirmed = await this.DisplayAlertAsync(S.DeleteItemTitle, S.DeleteItemMessage, S.Delete, S.CancelAction);
         if (confirmed)
         {
             _viewModel.DeleteCommand.Execute(null);

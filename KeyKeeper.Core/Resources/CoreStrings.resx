@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="BiometricReason" xml:space="preserve"><value>Authenticate to unlock the vault</value></data>
+  <data name="ExportWrongPassword" xml:space="preserve"><value>Wrong master password.</value></data>
+  <data name="ImportWrongPassword" xml:space="preserve"><value>Wrong master password or the file is corrupted.</value></data>
+  <data name="CorruptEncryptedBlock" xml:space="preserve"><value>The encrypted data block is corrupted or missing.</value></data>
+  <data name="EmptyBackupContent" xml:space="preserve"><value>The backup content is empty; the file may be corrupted.</value></data>
+  <data name="BackupUnreadable" xml:space="preserve"><value>The backup content could not be read: {0}</value></data>
+  <data name="FileTooShort" xml:space="preserve"><value>The file is too short; it is not a valid KeyKeeper backup file.</value></data>
+  <data name="FileSignatureUnknown" xml:space="preserve"><value>The file signature was not recognized; it is not a valid KeyKeeper backup file.</value></data>
+  <data name="FileTruncated" xml:space="preserve"><value>The file appears to be truncated or corrupted.</value></data>
+  <data name="HeaderUnreadable" xml:space="preserve"><value>The backup header could not be read; the file may be corrupted.</value></data>
+  <data name="HeaderEmpty" xml:space="preserve"><value>The backup header is empty; the file may be corrupted.</value></data>
+  <data name="NoEncryptedData" xml:space="preserve"><value>No encrypted data was found in the backup file.</value></data>
+</root>
